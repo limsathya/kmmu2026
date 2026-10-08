@@ -1,0 +1,737 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#1e40af">
+<title>2026级临床医学课表系统</title>
+<style>
+:root {
+  --bg:#f0f2f5; --card:#fff; --text:#1a1a1a; --muted:#64748b;
+  --border:#e2e8f0; --primary:#2563eb; --primary-light:#dbeafe;
+  --header:#1e40af; --row-hover:#fef3c7; --now:#fef9c3; --now-border:#eab308;
+  --green:#16a34a; --green-dark:#15803d;
+}
+[data-theme="dark"] {
+  --bg:#0f172a; --card:#1e293b; --text:#e2e8f0; --muted:#94a3b8;
+  --border:#334155; --primary:#60a5fa; --primary-light:#1e3a8a;
+  --header:#1e40af; --row-hover:#334155; --now:#422006; --now-border:#eab308;
+}
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html, body { margin:0; padding:0; height:100%; }
+body {
+  font-family: -apple-system, "Segoe UI", "Microsoft YaHei", sans-serif;
+  background: var(--bg); color: var(--text); font-size: 14px;
+  -webkit-font-smoothing: antialiased;
+  padding-bottom: env(safe-area-inset-bottom);
+}
+.app { display:flex; height:100vh; overflow:hidden; }
+
+.sidebar {
+  width: 260px; background: var(--card); border-right: 1px solid var(--border);
+  display: flex; flex-direction: column; overflow: hidden; flex-shrink: 0;
+}
+.sidebar-header { padding: 16px; border-bottom: 1px solid var(--border); }
+.sidebar h1 { font-size: 15px; margin: 0 0 12px; color: var(--primary); }
+.search-box {
+  width: 100%; padding: 8px 12px; border: 1px solid var(--border);
+  border-radius: 6px; background: var(--bg); color: var(--text);
+  font-size: 16px; outline: none; transition: border 0.15s;
+}
+.search-box:focus { border-color: var(--primary); }
+.class-list { list-style:none; margin:0; padding:8px; overflow-y:auto; flex:1; }
+.class-list li {
+  padding: 10px 12px; margin-bottom: 4px; border-radius: 6px;
+  cursor: pointer; font-size: 14px; transition: background 0.15s;
+}
+.class-list li:hover { background: var(--bg); }
+.class-list li.active { background: var(--primary); color: white; }
+
+.main { flex:1; display:flex; flex-direction:column; overflow:hidden; }
+.toolbar {
+  display:flex; gap:6px; padding:10px 14px; background: var(--card);
+  border-bottom: 1px solid var(--border); align-items:center; flex-wrap:wrap;
+}
+.toolbar button, .toolbar select {
+  padding: 8px 12px; border: 1px solid var(--border); border-radius: 6px;
+  background: var(--card); color: var(--text); font-size: 13px;
+  cursor: pointer; transition: all 0.15s; white-space: nowrap;
+}
+.toolbar button:hover, .toolbar select:hover { border-color: var(--primary); }
+.toolbar button.active { background: var(--primary); color:white; border-color: var(--primary); }
+.toolbar .spacer { flex: 1; }
+.menu-btn { display: none; }
+.cal-btn {
+  background: var(--green) !important; color: #fff !important;
+  border-color: var(--green) !important; font-weight: 600 !important;
+}
+.cal-btn:hover { background: var(--green-dark) !important; border-color: var(--green-dark) !important; }
+
+.content { flex:1; padding:20px; overflow:auto; -webkit-overflow-scrolling: touch; }
+
+.class-header { margin-bottom: 16px; display: flex; align-items: start; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.class-header h2 { margin: 0 0 4px; font-size: 18px; color: var(--primary); }
+.class-header .meta { font-size: 13px; color: var(--muted); }
+.class-header .meta .rule {
+  display: inline-block; margin-left: 8px; padding: 2px 8px; border-radius: 999px;
+  background: var(--primary-light); color: var(--primary); font-size: 11px;
+  font-weight: 600;
+}
+.class-header .actions { display: flex; gap: 6px; }
+.class-header .actions button {
+  padding: 6px 12px; font-size: 12px; border-radius: 6px;
+  border: 1px solid var(--border); background: var(--card); color: var(--text);
+  cursor: pointer; font-family: inherit;
+}
+.class-header .actions button:hover { border-color: var(--primary); }
+.class-header .actions .primary {
+  background: var(--green); color: #fff; border-color: var(--green); font-weight: 600;
+}
+.class-header .actions .primary:hover { background: var(--green-dark); border-color: var(--green-dark); }
+
+.timetable {
+  width: 100%; border-collapse: collapse; background: var(--card);
+  border-radius: 8px; overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.08); table-layout: fixed;
+}
+.timetable th, .timetable td {
+  border: 1px solid var(--border); padding: 8px; vertical-align: top;
+  font-size: 12px; line-height: 1.5;
+}
+.timetable thead th {
+  background: var(--header); color: white; text-align: center;
+  font-weight: 600; font-size: 13px; padding: 10px 8px;
+}
+.timetable thead th.now { background: var(--now-border); color: #000; }
+.timetable .period-col {
+  width: 140px; text-align: center; background: var(--bg);
+  font-weight: 600; color: var(--primary);
+}
+.timetable .period-col .label {
+  font-size: 12px; font-weight: 600; color: var(--primary);
+}
+.timetable .period-col .time {
+  display: block; font-size: 11px; font-weight: 600;
+  color: var(--muted); margin-top: 2px;
+}
+.timetable .period-col .sub {
+  display: block; font-size: 10px; font-weight: 400;
+  color: var(--muted); margin-top: 4px; line-height: 1.5;
+  padding-top: 4px; border-top: 1px dashed var(--border);
+}
+.timetable .period-col .sub .p { display: block; }
+.timetable tbody tr:hover td:not(.period-col) { background: var(--row-hover); }
+.timetable td.now { background: var(--now) !important; }
+
+.course { padding: 3px 0; position: relative; }
+.course + .course { border-top: 1px dashed var(--border); margin-top: 4px; padding-top: 6px; }
+.course .name { font-weight: 600; color: var(--primary); padding-right: 22px; }
+.course .info { font-size: 11px; color: var(--muted); margin-top: 2px; }
+.course .gcal {
+  position: absolute; top: 4px; right: 0;
+  width: 18px; height: 18px; border-radius: 4px;
+  border: 1px solid var(--border); background: var(--card);
+  color: var(--primary); font-size: 11px; line-height: 1;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; padding: 0; transition: all 0.15s;
+}
+.course .gcal:hover { background: var(--primary); color: #fff; border-color: var(--primary); }
+
+.today-view { max-width: 800px; }
+.today-view h2 { font-size: 18px; margin: 0 0 16px; color: var(--primary); }
+.today-item {
+  display: flex; gap: 16px; padding: 14px 16px; background: var(--card);
+  border-radius: 8px; margin-bottom: 10px; border-left: 4px solid var(--primary);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+}
+.today-item .time-block { min-width: 130px; font-weight: 600; color: var(--primary); }
+.today-item .time-block .label { font-size: 13px; }
+.today-item .time-block .range {
+  display: block; font-size: 12px; font-weight: 400;
+  color: var(--muted); margin-top: 2px;
+}
+.today-item .time-block .sub {
+  display: block; font-size: 11px; color: var(--muted); margin-top: 4px;
+  font-weight: 400; line-height: 1.5;
+}
+.today-item .course-block .name { font-weight: 600; font-size: 14px; margin-bottom: 4px; }
+.today-item .course-block .info { font-size: 12px; color: var(--muted); }
+.today-item .course-block .gcal {
+  margin-top: 6px; padding: 4px 10px; font-size: 11px; border-radius: 4px;
+  border: 1px solid var(--border); background: var(--card); color: var(--primary);
+  cursor: pointer; font-family: inherit;
+}
+.today-item .course-block .gcal:hover { background: var(--primary); color: #fff; }
+
+.empty { text-align: center; color: var(--muted); padding: 60px 20px; font-size: 14px; }
+
+.toast {
+  position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(10px);
+  background: #1e40af; color: white; padding: 12px 20px; border-radius: 8px;
+  font-size: 13px; box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+  z-index: 999; opacity: 0; transition: opacity 0.25s, transform 0.25s;
+  pointer-events: none; max-width: 90vw; text-align: center;
+  bottom: calc(24px + env(safe-area-inset-bottom));
+}
+.toast.show { opacity: 1; transform: translateX(-50%) translateY(-8px); }
+
+.sheet-backdrop {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 1000;
+  opacity: 0; pointer-events: none; transition: opacity 0.2s;
+}
+.sheet-backdrop.show { opacity: 1; pointer-events: auto; }
+.sheet {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 1001;
+  background: var(--card); border-radius: 16px 16px 0 0;
+  padding: 16px 16px calc(16px + env(safe-area-inset-bottom));
+  transform: translateY(100%); transition: transform 0.25s;
+  max-width: 500px; margin: 0 auto;
+}
+.sheet.show { transform: translateY(0); }
+.sheet h3 { margin: 0 0 12px; font-size: 15px; color: var(--primary); }
+.sheet .sheet-item {
+  display: flex; align-items: center; gap: 12px; width: 100%;
+  padding: 14px 12px; border-radius: 8px; border: none;
+  background: var(--bg); color: var(--text); font-size: 14px;
+  cursor: pointer; margin-bottom: 8px; font-family: inherit; text-align: left;
+}
+.sheet .sheet-item:hover { background: var(--primary-light); }
+.sheet .sheet-item .icon { font-size: 20px; width: 24px; text-align: center; }
+.sheet .sheet-item .label { flex: 1; }
+.sheet .sheet-item .sub { font-size: 12px; color: var(--muted); margin-top: 2px; }
+.sheet .cancel {
+  width: 100%; padding: 14px; border-radius: 8px; border: 1px solid var(--border);
+  background: transparent; color: var(--text); font-size: 14px;
+  cursor: pointer; font-family: inherit; margin-top: 4px;
+}
+
+@media (max-width: 768px) {
+  .sidebar {
+    position: fixed; left: 0; top: 0; bottom: 0; z-index: 10;
+    transform: translateX(-100%); transition: transform 0.2s; width: 240px;
+  }
+  .sidebar.open { transform: translateX(0); box-shadow: 4px 0 12px rgba(0,0,0,0.15); }
+  .menu-btn { display: inline-block; }
+  .content { padding: 12px; }
+  .toolbar { padding: 8px 10px; gap: 4px; }
+  .toolbar button, .toolbar select { padding: 8px 10px; font-size: 12px; }
+  .timetable { font-size: 11px; }
+  .timetable th, .timetable td { padding: 5px; }
+  .timetable .period-col { width: 100px; }
+  .timetable .period-col .sub { font-size: 9px; }
+  .course .name { font-size: 11px; }
+  .course .info { font-size: 10px; }
+  .course .gcal { width: 16px; height: 16px; font-size: 10px; }
+}
+
+@media print {
+  .sidebar, .toolbar { display: none !important; }
+  .app { height: auto; }
+  .content { overflow: visible; padding: 0; }
+  .timetable { box-shadow: none; }
+  .timetable thead th {
+    background: #1e40af !important; color: #fff !important;
+    -webkit-print-color-adjust: exact; print-color-adjust: exact;
+  }
+  .timetable td.now { background: transparent !important; }
+  .class-header { page-break-after: avoid; }
+  .class-header .actions { display: none; }
+  .course .gcal { display: none; }
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+      <h1>📚 2026级临床医学课表</h1>
+      <input type="search" class="search-box" id="search" placeholder="搜索班级...">
+    </div>
+    <ul class="class-list" id="classList"></ul>
+  </aside>
+
+  <main class="main">
+    <div class="toolbar">
+      <button class="menu-btn" id="menuBtn">☰</button>
+      <select id="weekSelect"></select>
+      <button id="todayBtn">今天</button>
+      <div class="spacer"></div>
+      <button class="cal-btn" id="calBtn">📱 添加到手机日历</button>
+      <button id="themeBtn">🌙</button>
+      <button id="printBtn">🖨</button>
+    </div>
+    <div class="content" id="content"></div>
+  </main>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<div class="sheet-backdrop" id="sheetBackdrop"></div>
+<div class="sheet" id="sheet">
+  <h3 id="sheetTitle">添加到日历</h3>
+  <div id="sheetItems"></div>
+  <button class="cancel" id="sheetCancel">取消</button>
+</div>
+
+<script>
+const DATA = [{"name": "2026级临床医学一大班[45]", "dept": "第一临床医学院", "major": "临床医学", "size": 45, "schedule": {"一": {"星期一": [{"name": "医学物理学", "teacher": "邬志韧", "room": "5101", "weeks": [4, 5, 6, 7, 8, 9, 10, 11, 12]}], "星期二": [], "星期三": [], "星期四": [], "星期五": [{"name": "临床医学导论", "teacher": "郭艳", "room": "6203", "weeks": [6, 7, 8]}, {"name": "临床医学导论", "teacher": "尹凤琼", "room": "6203", "weeks": [9, 10]}, {"name": "临床医学导论", "teacher": "段红艳", "room": "6203", "weeks": [12]}, {"name": "医用高等数学Ⅰ", "teacher": "王艳宁", "room": "6201", "weeks": [13, 14]}], "星期六": [], "星期日": []}, "二": {"星期一": [{"name": "医用高等数学Ⅰ", "teacher": "王艳宁", "room": "6202", "weeks": [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19]}], "星期二": [{"name": "临床医学导论", "teacher": "段红艳", "room": "6202", "weeks": [4]}, {"name": "临床医学导论", "teacher": "段红艳", "room": "6202", "weeks": [5]}, {"name": "临床医学导论", "teacher": "段红艳", "room": "6202", "weeks": [11]}], "星期三": [], "星期四": [{"name": "基础化学Ⅰ", "teacher": "李美红", "room": "5202", "weeks": [4, 6, 7, 8, 9, 10, 11, 12, 13, 14]}, {"name": "有机化学Ⅰ", "teacher": "谢惠定", "room": "5202", "weeks": [15, 16, 17]}], "星期五": [], "星期六": [], "星期日": []}, "三": {"星期一": [{"name": "基础化学Ⅰ", "teacher": "李美红", "room": "5202", "weeks": [4, 5]}, {"name": "有机化学Ⅰ", "teacher": "谢惠定", "room": "5202", "weeks": [7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18]}], "星期二": [{"name": "基础化学Ⅰ", "teacher": "谢惠定", "room": "药学院二楼实验室-1", "weeks": [4, 5, 6, 7, 8, 9, 10]}, {"name": "基础化学Ⅰ", "teacher": "王江", "room": "药学院二楼实验室-1", "weeks": [4, 5, 6, 7, 8, 9, 10]}, {"name": "基础化学Ⅰ", "teacher": "孙忠文", "room": "药学院二楼实验室-1", "weeks": [4, 5, 6, 7, 8, 9, 10]}, {"name": "有机化学Ⅰ", "teacher": "谢惠定", "room": "药学楼一楼实验室-1", "weeks": [11, 12, 13, 14, 15, 16, 17, 18]}, {"name": "有机化学Ⅰ", "teacher": "王江", "room": "药学楼一楼实验室-1", "weeks": [11, 12, 13, 14, 15, 16, 17, 18]}, {"name": "有机化学Ⅰ", "teacher": "陈亚萍", "room": "药学楼一楼实验室-1", "weeks": [11, 12, 13, 14, 15, 16, 17, 18]}], "星期三": [{"name": "大学生心理健康教育", "teacher": "和镞烟", "room": "6104", "weeks": [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]}], "星期四": [{"name": "体育（1）", "teacher": "董奎", "room": "临1大", "weeks": [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19]}], "星期五": [], "星期六": [], "星期日": []}, "四": {"星期一": [], "星期二": [{"name": "医学物理学", "teacher": "邬志韧", "room": "5101", "weeks": [4, 5, 6, 7, 8, 9, 10, 11, 12]}, {"name": "医学物理学", "teacher": "高泽利", "room": "26级医学物理学临床1,2班", "weeks": [13, 14, 15, 16, 17, 18]}], "星期三": [{"name": "国家安全教育", "teacher": "李梦瑶", "room": "5103", "weeks": [14, 15, 16, 17, 18]}], "星期四": [], "星期五": [], "星期六": [], "星期日": []}, "五": {"星期一": [], "星期二": [], "星期三": [], "星期四": [], "星期五": [], "星期六": [], "星期日": []}}}, {"name": "2026级临床医学二大班[44]", "dept": "第一临床医学院", "major": "临床医学", "size": 44, "schedule": {"一": {"星期一": [{"name": "医学物理学", "teacher": "邬志韧", "room": "5101", "weeks": [4, 5, 6, 7, 8, 9, 10, 11, 12]}], "星期二": [], "星期三": [], "星期四": [], "星期五": [{"name": "临床医学导论", "teacher": "郭艳", "room": "6203", "weeks": [6, 7, 8]}, {"name": "临床医学导论", "teacher": "尹凤琼", "room": "6203", "weeks": [9, 10]}, {"name": "临床医学导论", "teacher": "段红艳", "room": "6203", "weeks": [12]}, {"name": "医用高等数学Ⅰ", "teacher": "王艳宁", "room": "6201", "weeks": [13, 14]}], "星期六": [], "星期日": []}, "二": {"星期一": [{"name": "医用高等数学Ⅰ", "teacher": "王艳宁", "room": "6202", "weeks": [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19]}], "星期二": [{"name": "临床医学导论", "teacher": "段红艳", "room": "6202", "weeks": [4]}, {"name": "临床医学导论", "teacher": "段红艳", "room": "6202", "weeks": [5]}, {"name": "临床医学导论", "teacher": "段红艳", "room": "6202", "weeks": [11]}], "星期三": [], "星期四": [{"name": "基础化学Ⅰ", "teacher": "李美红", "room": "5202", "weeks": [4, 6, 7, 8, 9, 10, 11, 12, 13, 14]}, {"name": "有机化学Ⅰ", "teacher": "谢惠定", "room": "5202", "weeks": [15, 16, 17]}], "星期五": [], "星期六": [], "星期日": []}, "三": {"星期一": [{"name": "基础化学Ⅰ", "teacher": "李美红", "room": "5202", "weeks": [4, 5]}, {"name": "有机化学Ⅰ", "teacher": "谢惠定", "room": "5202", "weeks": [7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18]}], "星期二": [{"name": "基础化学Ⅰ", "teacher": "谢惠定", "room": "药学院二楼实验室-1", "weeks": [4, 5, 6, 7, 8, 9, 10]}, {"name": "基础化学Ⅰ", "teacher": "王江", "room": "药学院二楼实验室-1", "weeks": [4, 5, 6, 7, 8, 9, 10]}, {"name": "基础化学Ⅰ", "teacher": "孙忠文", "room": "药学院二楼实验室-1", "weeks": [4, 5, 6, 7, 8, 9, 10]}, {"name": "有机化学Ⅰ", "teacher": "谢惠定", "room": "药学楼一楼实验室-1", "weeks": [11, 12, 13, 14, 15, 16, 17, 18]}, {"name": "有机化学Ⅰ", "teacher": "王江", "room": "药学楼一楼实验室-1", "weeks": [11, 12, 13, 14, 15, 16, 17, 18]}, {"name": "有机化学Ⅰ", "teacher": "陈亚萍", "room": "药学楼一楼实验室-1", "weeks": [11, 12, 13, 14, 15, 16, 17, 18]}], "星期三": [{"name": "大学生心理健康教育", "teacher": "和镞烟", "room": "6104", "weeks": [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]}], "星期四": [{"name": "体育（1）", "teacher": "崔白帆", "room": "临2大", "weeks": [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19]}], "星期五": [], "星期六": [], "星期日": []}, "四": {"星期一": [], "星期二": [{"name": "医学物理学", "teacher": "邬志韧", "room": "5101", "weeks": [4, 5, 6, 7, 8, 9, 10, 11, 12]}, {"name": "医学物理学", "teacher": "高泽利", "room": "26级医学物理学临床1,2班", "weeks": [13, 14, 15, 16, 17, 18]}], "星期三": [{"name": "国家安全教育", "teacher": "李梦瑶", "room": "5103", "weeks": [14, 15, 16, 17, 18]}], "星期四": [], "星期五": [], "星期六": [], "星期日": []}, "五": {"星期一": [], "星期二": [], "星期三": [], "星期四": [], "星期五": [], "星期六": [], "星期日": []}}}, {"name": "2026级临床医学三大班[41]", "dept": "第一临床医学院", "major": "临床医学", "size": 41, "schedule": {"一": {"星期一": [{"name": "基础化学Ⅰ", "teacher": "喻芳", "room": "5201", "weeks": [4, 5]}, {"name": "有机化学Ⅰ", "teacher": "李玉鹏", "room": "5201", "weeks": [7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18]}], "星期二": [], "星期三": [{"name": "医学物理学", "teacher": "邬志韧", "room": "5402", "weeks": [4, 5, 6, 7, 8, 9, 10, 11, 12]}], "星期四": [], "星期五": [{"name": "医学物理学", "teacher": "高泽利", "room": "26级医学物理学临床3,4班", "weeks": [13, 14, 15, 16, 17, 18]}], "星期六": [], "星期日": []}, "二": {"星期一": [{"name": "临床医学导论", "teacher": "罗罡", "room": "6104", "weeks": [4, 5]}, {"name": "临床医学导论", "teacher": "高波", "room": "6104", "weeks": [7]}, {"name": "临床医学导论", "teacher": "罗罡", "room": "6104", "weeks": [8]}, {"name": "临床医学导论", "teacher": "高波", "room": "6104", "weeks": [9]}, {"name": "临床医学导论", "teacher": "罗罡", "room": "6104", "weeks": [10]}, {"name": "临床医学导论", "teacher": "高波", "room": "6104", "weeks": [11]}, {"name": "临床医学导论", "teacher": "高波", "room": "6104", "weeks": [12]}], "星期二": [{"name": "基础化学Ⅰ", "teacher": "喻芳", "room": "5201", "weeks": [4, 5, 7, 8, 9, 10, 11, 12, 13, 14]}, {"name": "有机化学Ⅰ", "teacher": "李玉鹏", "room": "5201", "weeks": [15, 16, 17]}], "星期三": [{"name": "医用高等数学Ⅰ", "teacher": "尹舒", "room": "6202", "weeks": [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18]}], "星期四": [{"name": "体育（1）", "teacher": "庞俊娣", "room": "临床3、4大（1）", "weeks": [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19]}, {"name": "体育（1）", "teacher": "李俊骅", "room": "临床3、4大（2）", "weeks": [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19]}, {"name": "体育（1）", "teacher": "霍冰洁", "room": "临床3、4大（3）", "weeks": [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19]}], "星期五": [{"name": "医用高等数学Ⅰ", "teacher": "尹舒", "room": "6201", "weeks": [16, 17, 18]}], "星期六": [], "星期日": []}, "三": {"星期一": [{"name": "医学物理学", "teacher": "邬志韧", "room": "5203", "weeks": [4, 5, 6, 7, 8, 9, 10, 11, 12]}, {"name": "国家安全教育", "teacher": "屈凡伟", "room": "1207", "weeks": [14, 15, 16, 17, 18]}], "星期二": [], "星期三": [{"name": "基础化学Ⅰ", "teacher": "喻芳", "room": "药学院二楼实验室-1", "weeks": [4, 5, 6, 7, 8, 9, 10]}, {"name": "基础化学Ⅰ", "teacher": "柳波", "room": "药学院二楼实验室-1", "weeks": [4, 5, 6, 7, 8, 9, 10]}, {"name": "基础化学Ⅰ", "teacher": "孙岩", "room": "药学院二楼实验室-1", "weeks": [4, 5, 6, 7, 8, 9, 10]}, {"name": "有机化学Ⅰ", "teacher": "李美红", "room": "药学楼一楼实验室-1", "weeks": [11, 12, 13, 14, 15, 16, 17, 18]}, {"name": "有机化学Ⅰ", "teacher": "柳波", "room": "药学楼一楼实验室-1", "weeks": [11, 12, 13, 14, 15, 16, 17, 18]}, {"name": "有机化学Ⅰ", "teacher": "孙岩", "room": "药学楼一楼实验室-1", "weeks": [11, 12, 13, 14, 15, 16, 17, 18]}], "星期四": [], "星期五": [], "星期六": [], "星期日": []}, "四": {"星期一": [], "星期二": [], "星期三": [], "星期四": [{"name": "临床医学导论", "teacher": "高波", "room": "6104", "weeks": [7]}], "星期五": [], "星期六": [], "星期日": []}, "五": {"星期一": [], "星期二": [], "星期三": [], "星期四": [], "星期五": [{"name": "大学生心理健康教育", "teacher": "杨青青", "room": "1109", "weeks": [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]}], "星期六": [], "星期日": []}}}, {"name": "2026级临床医学四大班[44]", "dept": "第一临床医学院", "major": "临床医学", "size": 44, "schedule": {"一": {"星期一": [{"name": "基础化学Ⅰ", "teacher": "喻芳", "room": "5201", "weeks": [4, 5]}, {"name": "有机化学Ⅰ", "teacher": "李玉鹏", "room": "5201", "weeks": [7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18]}], "星期二": [], "星期三": [{"name": "医学物理学", "teacher": "邬志韧", "room": "5402", "weeks": [4, 5, 6, 7, 8, 9, 10, 11, 12]}], "星期四": [], "星期五": [{"name": "医学物理学", "teacher": "高泽利", "room": "26级医学物理学临床3,4班", "weeks": [13, 14, 15, 16, 17, 18]}], "星期六": [], "星期日": []}, "二": {"星期一": [{"name": "临床医学导论", "teacher": "罗罡", "room": "6104", "weeks": [4, 5]}, {"name": "临床医学导论", "teacher": "高波", "room": "6104", "weeks": [7]}, {"name": "临床医学导论", "teacher": "罗罡", "room": "6104", "weeks": [8]}, {"name": "临床医学导论", "teacher": "高波", "room": "6104", "weeks": [9]}, {"name": "临床医学导论", "teacher": "罗罡", "room": "6104", "weeks": [10]}, {"name": "临床医学导论", "teacher": "高波", "room": "6104", "weeks": [11]}, {"name": "临床医学导论", "teacher": "高波", "room": "6104", "weeks": [12]}], "星期二": [{"name": "基础化学Ⅰ", "teacher": "喻芳", "room": "5201", "weeks": [4, 5, 7, 8, 9, 10, 11, 12, 13, 14]}, {"name": "有机化学Ⅰ", "teacher": "李玉鹏", "room": "5201", "weeks": [15, 16, 17]}], "星期三": [{"name": "医用高等数学Ⅰ", "teacher": "尹舒", "room": "6202", "weeks": [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18]}], "星期四": [{"name": "体育（1）", "teacher": "庞俊娣", "room": "临床3、4大（1）", "weeks": [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19]}, {"name": "体育（1）", "teacher": "李俊骅", "room": "临床3、4大（2）", "weeks": [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19]}, {"name": "体育（1）", "teacher": "霍冰洁", "room": "临床3、4大（3）", "weeks": [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19]}], "星期五": [{"name": "医用高等数学Ⅰ", "teacher": "尹舒", "room": "6201", "weeks": [16, 17, 18]}], "星期六": [], "星期日": []}, "三": {"星期一": [{"name": "医学物理学", "teacher": "邬志韧", "room": "5203", "weeks": [4, 5, 6, 7, 8, 9, 10, 11, 12]}, {"name": "国家安全教育", "teacher": "屈凡伟", "room": "1207", "weeks": [14, 15, 16, 17, 18]}], "星期二": [], "星期三": [{"name": "基础化学Ⅰ", "teacher": "喻芳", "room": "药学院二楼实验室-1", "weeks": [4, 5, 6, 7, 8, 9, 10]}, {"name": "基础化学Ⅰ", "teacher": "柳波", "room": "药学院二楼实验室-1", "weeks": [4, 5, 6, 7, 8, 9, 10]}, {"name": "基础化学Ⅰ", "teacher": "孙岩", "room": "药学院二楼实验室-1", "weeks": [4, 5, 6, 7, 8, 9, 10]}, {"name": "有机化学Ⅰ", "teacher": "李美红", "room": "药学楼一楼实验室-1", "weeks": [11, 12, 13, 14, 15, 16, 17, 18]}, {"name": "有机化学Ⅰ", "teacher": "柳波", "room": "药学楼一楼实验室-1", "weeks": [11, 12, 13, 14, 15, 16, 17, 18]}, {"name": "有机化学Ⅰ", "teacher": "孙岩", "room": "药学楼一楼实验室-1", "weeks": [11, 12, 13, 14, 15, 16, 17, 18]}], "星期四": [], "星期五": [], "星期六": [], "星期日": []}, "四": {"星期一": [], "星期二": [], "星期三": [], "星期四": [{"name": "临床医学导论", "teacher": "高波", "room": "6104", "weeks": [7]}], "星期五": [], "星期六": [], "星期日": []}, "五": {"星期一": [], "星期二": [], "星期三": [], "星期四": [], "星期五": [{"name": "大学生心理健康教育", "teacher": "杨青青", "room": "1109", "weeks": [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]}], "星期六": [], "星期日": []}}}, {"name": "2026级临床医学五大班[43]", "dept": "第一临床医学院", "major": "临床医学", "size": 43, "schedule": {"一": {"星期一": [{"name": "国家安全教育", "teacher": "外聘教师1", "room": "1207", "weeks": [14, 15, 16, 17, 18]}], "星期二": [], "星期三": [{"name": "基础化学Ⅰ", "teacher": "李美红", "room": "5301", "weeks": [4, 5]}, {"name": "有机化学Ⅰ", "teacher": "徐畅", "room": "5301", "weeks": [7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17]}], "星期四": [{"name": "体育（1）", "teacher": "张安骏", "room": "临床5、食品营养（1）", "weeks": [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19]}, {"name": "体育（1）", "teacher": "李俊骅", "room": "临床5、食品营养（2）", "weeks": [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19]}, {"name": "体育（1）", "teacher": "田金东", "room": "临床5、食品营养（3）", "weeks": [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19]}], "星期五": [], "星期六": [], "星期日": []}, "二": {"星期一": [{"name": "基础化学Ⅰ", "teacher": "李美红", "room": "5301", "weeks": [4, 5, 7, 8, 9, 10, 11, 12, 13, 14]}, {"name": "有机化学Ⅰ", "teacher": "徐畅", "room": "5301", "weeks": [15, 16, 17]}], "星期二": [], "星期三": [{"name": "医用高等数学Ⅰ", "teacher": "张娟", "room": "3102", "weeks": [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18]}], "星期四": [], "星期五": [], "星期六": [], "星期日": []}, "三": {"星期一": [{"name": "医用高等数学Ⅰ", "teacher": "张娟", "room": "3102", "weeks": [11, 12, 13]}], "星期二": [], "星期三": [], "星期四": [], "星期五": [{"name": "基础化学Ⅰ", "teacher": "王玉娜", "room": "药学院二楼实验室-1", "weeks": [5, 6, 7, 9, 10]}, {"name": "基础化学Ⅰ", "teacher": "柳波", "room": "药学院二楼实验室-1", "weeks": [5, 6, 7, 9, 10]}, {"name": "基础化学Ⅰ", "teacher": "李玉鹏", "room": "药学院二楼实验室-1", "weeks": [5, 6, 7, 9, 10]}, {"name": "有机化学Ⅰ", "teacher": "陈丽君", "room": "药学楼一楼实验室-1", "weeks": [11, 13, 14, 15, 17, 18]}, {"name": "有机化学Ⅰ", "teacher": "柳波", "room": "药学楼一楼实验室-1", "weeks": [11, 13, 14, 15, 17, 18]}, {"name": "有机化学Ⅰ", "teacher": "李玉鹏", "room": "药学楼一楼实验室-1", "weeks": [11, 13, 14, 15, 17, 18]}], "星期六": [], "星期日": []}, "四": {"星期一": [{"name": "医学物理学", "teacher": "王勇", "room": "5102", "weeks": [4, 5, 6, 7, 8, 9, 10, 11, 12]}, {"name": "医学物理学", "teacher": "张何丽", "room": "26级医学物理学临床5,16班", "weeks": [13, 14, 15, 16, 17, 18]}], "星期二": [{"name": "临床医学导论", "teacher": "罗宁", "room": "6301", "weeks": [4, 5]}, {"name": "临床医学导论", "teacher": "彭银", "room": "6301", "weeks": [6, 7]}, {"name": "临床医学导论", "teacher": "尹凤琼", "room": "6301", "weeks": [8]}, {"name": "临床医学导论", "teacher": "罗宁", "room": "6301", "weeks": [9, 10]}, {"name": "临床医学导论", "teacher": "尹凤琼", "room": "6301", "weeks": [11]}, {"name": "临床医学导论", "teacher": "罗宁", "room": "6301", "weeks": [12]}], "星期三": [{"name": "医学物理学", "teacher": "王勇", "room": "5101", "weeks": [4, 5, 6, 7, 8, 9, 10, 11, 12]}], "星期四": [], "星期五": [], "星期六": [], "星期日": []}, "五": {"星期一": [], "星期二": [], "星期三": [{"name": "大学生心理健康教育", "teacher": "罗仕琦", "room": "1208", "weeks": [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]}], "星期四": [], "星期五": [{"name": "基础化学Ⅰ", "teacher": "王玉娜", "room": "药学院二楼实验室-1", "weeks": [4, 8]}, {"name": "基础化学Ⅰ", "teacher": "柳波", "room": "药学院二楼实验室-1", "weeks": [4, 8]}, {"name": "基础化学Ⅰ", "teacher": "李玉鹏", "room": "药学院二楼实验室-1", "weeks": [4, 8]}, {"name": "有机化学Ⅰ", "teacher": "陈丽君", "room": "药学楼一楼实验室-1", "weeks": [12, 16]}, {"name": "有机化学Ⅰ", "teacher": "柳波", "room": "药学楼一楼实验室-1", "weeks": [12, 16]}, {"name": "有机化学Ⅰ", "teacher": "李玉鹏", "room": "药学楼一楼实验室-1", "weeks": [12, 16]}], "星期六": [], "星期日": []}}}, {"name": "2026级临床医学六大班[44]", "dept": "第一临床医学院", "major": "临床医学", "size": 44, "schedule": {"一": {"星期一": [], "星期二": [], "星期三": [{"name": "基础化学Ⅰ", "teacher": "喻芳", "room": "5202", "weeks": [4, 5]}, {"name": "有机化学Ⅰ", "teacher": "李玉鹏", "room": "5202", "weeks": [7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18]}], "星期四": [], "星期五": [{"name": "医用高等数学Ⅰ", "teacher": "张娟", "room": "3101", "weeks": [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18]}], "星期六": [], "星期日": []}, "二": {"星期一": [], "星期二": [], "星期三": [{"name": "临床医学导论", "teacher": "罗罡", "room": "6102", "weeks": [4, 5]}, {"name": "临床医学导论", "teacher": "高波", "room": "6102", "weeks": [6, 7]}, {"name": "临床医学导论", "teacher": "尹凤琼", "room": "6102", "weeks": [8, 9]}, {"name": "临床医学导论", "teacher": "罗罡", "room": "6102", "weeks": [10]}, {"name": "临床医学导论", "teacher": "尹凤琼", "room": "6102", "weeks": [11]}, {"name": "临床医学导论", "teacher": "高波", "room": "6102", "weeks": [12]}], "星期四": [], "星期五": [{"name": "基础化学Ⅰ", "teacher": "喻芳", "room": "5202", "weeks": [4, 6, 7, 8, 9, 10, 11, 12, 13, 14]}, {"name": "有机化学Ⅰ", "teacher": "李玉鹏", "room": "5202", "weeks": [15, 16, 17]}], "星期六": [], "星期日": []}, "三": {"星期一": [{"name": "体育（1）", "teacher": "徐连武", "room": "临床6、7大（1）", "weeks": [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19]}, {"name": "体育（1）", "teacher": "李榆", "room": "临床6、7大（2）", "weeks": [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19]}, {"name": "体育（1）", "teacher": "李珂然", "room": "临床6、7大（3）", "weeks": [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19]}], "星期二": [{"name": "医学物理学", "teacher": "赵钦", "room": "6102", "weeks": [4, 5, 6, 7, 8, 9, 10, 11, 12]}, {"name": "医学物理学", "teacher": "高泽利", "room": "26级医学物理学临床6,7班", "weeks": [13, 14, 15, 16, 17, 18]}], "星期三": [{"name": "医学物理学", "teacher": "赵钦", "room": "6102", "weeks": [4, 5, 6, 7, 8, 9, 10, 11, 12]}, {"name": "国家安全教育", "teacher": "外聘教师1", "room": "1109", "weeks": [14, 15, 16, 17, 18]}], "星期四": [{"name": "基础化学Ⅰ", "teacher": "徐湘婷", "room": "药学院二楼实验室-1", "weeks": [4, 5, 6, 7, 8, 9, 10]}, {"name": "基础化学Ⅰ", "teacher": "陈亚萍", "room": "药学院二楼实验室-1", "weeks": [4, 5, 6, 7, 8, 9, 10]}, {"name": "基础化学Ⅰ", "teacher": "陈丽君", "room": "药学院二楼实验室-1", "weeks": [4, 5, 6, 7, 8, 9, 10]}, {"name": "有机化学Ⅰ", "teacher": "徐寒", "room": "药学楼一楼实验室-1", "weeks": [11, 12, 13, 14, 15, 16, 17, 18]}, {"name": "有机化学Ⅰ", "teacher": "陈亚萍", "room": "药学楼一楼实验室-1", "weeks": [11, 12, 13, 14, 15, 16, 17, 18]}, {"name": "有机化学Ⅰ", "teacher": "陈丽君", "room": "药学楼一楼实验室-1", "weeks": [11, 12, 13, 14, 15, 16, 17, 18]}], "星期五": [], "星期六": [], "星期日": []}, "四": {"星期一": [], "星期二": [], "星期三": [{"name": "医用高等数学Ⅰ", "teacher": "张娟", "room": "3101", "weeks": [13, 14, 15]}], "星期四": [], "星期五": [], "星期六": [], "星期日": []}, "五": {"星期一": [], "星期二": [], "星期三": [], "星期四": [], "星期五": [{"name": "大学生心理健康教育", "teacher": "孙寰", "room": "医药基础实验中心大楼101", "weeks": [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]}], "星期六": [], "星期日": []}}}, {"name": "2026级临床医学七大班[44]", "dept": "第一临床医学院", "major": "临床医学", "size": 44, "schedule": {"一": {"星期一": [], "星期二": [], "星期三": [{"name": "基础化学Ⅰ", "teacher": "喻芳", "room": "5202", "weeks": [4, 5]}, {"name": "有机化学Ⅰ", "teacher": "李玉鹏", "room": "5202", "weeks": [7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18]}], "星期四": [], "星期五": [{"name": "医用高等数学Ⅰ", "teacher": "张娟", "room": "3101", "weeks": [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18]}], "星期六": [], "星期日": []}, "二": {"星期一": [], "星期二": [], "星期三": [{"name": "临床医学导论", "teacher": "罗罡", "room": "6102", "weeks": [4, 5]}, {"name": "临床医学导论", "teacher": "高波", "room": "6102", "weeks": [6, 7]}, {"name": "临床医学导论", "teacher": "尹凤琼", "room": "6102", "weeks": [8, 9]}, {"name": "临床医学导论", "teacher": "罗罡", "room": "6102", "weeks": [10]}, {"name": "临床医学导论", "teacher": "尹凤琼", "room": "6102", "weeks": [11]}, {"name": "临床医学导论", "teacher": "高波", "room": "6102", "weeks": [12]}], "星期四": [], "星期五": [{"name": "基础化学Ⅰ", "teacher": "喻芳", "room": "5202", "weeks": [4, 6, 7, 8, 9, 10, 11, 12, 13, 14]}, {"name": "有机化学Ⅰ", "teacher": "李玉鹏", "room": "5202", "weeks": [15, 16, 17]}], "星期六": [], "星期日": []}, "三": {"星期一": [{"name": "体育（1）", "teacher": "徐连武", "room": "临床6、7大（1）", "weeks": [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19]}, {"name": "体育（1）", "teacher": "李榆", "room": "临床6、7大（2）", "weeks": [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19]}, {"name": "体育（1）", "teacher": "李珂然", "room": "临床6、7大（3）", "weeks": [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19]}], "星期二": [{"name": "医学物理学", "teacher": "赵钦", "room": "6102", "weeks": [4, 5, 6, 7, 8, 9, 10, 11, 12]}, {"name": "医学物理学", "teacher": "高泽利", "room": "26级医学物理学临床6,7班", "weeks": [13, 14, 15, 16, 17, 18]}], "星期三": [{"name": "医学物理学", "teacher": "赵钦", "room": "6102", "weeks": [4, 5, 6, 7, 8, 9, 10, 11, 12]}, {"name": "国家安全教育", "teacher": "外聘教师1", "room": "1109", "weeks": [14, 15, 16, 17, 18]}], "星期四": [{"name": "基础化学Ⅰ", "teacher": "徐湘婷", "room": "药学院二楼实验室-1", "weeks": [4, 5, 6, 7, 8, 9, 10]}, {"name": "基础化学Ⅰ", "teacher": "陈亚萍", "room": "药学院二楼实验室-1", "weeks": [4, 5, 6, 7, 8, 9, 10]}, {"name": "基础化学Ⅰ", "teacher": "陈丽君", "room": "药学院二楼实验室-1", "weeks": [4, 5, 6, 7, 8, 9, 10]}, {"name": "有机化学Ⅰ", "teacher": "徐寒", "room": "药学楼一楼实验室-1", "weeks": [11, 12, 13, 14, 15, 16, 17, 18]}, {"name": "有机化学Ⅰ", "teacher": "陈亚萍", "room": "药学楼一楼实验室-1", "weeks": [11, 12, 13, 14, 15, 16, 17, 18]}, {"name": "有机化学Ⅰ", "teacher": "陈丽君", "room": "药学楼一楼实验室-1", "weeks": [11, 12, 13, 14, 15, 16, 17, 18]}], "星期五": [], "星期六": [], "星期日": []}, "四": {"星期一": [], "星期二": [], "星期三": [{"name": "医用高等数学Ⅰ", "teacher": "张娟", "room": "3101", "weeks": [13, 14, 15]}], "星期四": [], "星期五": [], "星期六": [], "星期日": []}, "五": {"星期一": [], "星期二": [], "星期三": [], "星期四": [], "星期五": [{"name": "大学生心理健康教育", "teacher": "孙寰", "room": "医药基础实验中心大楼101", "weeks": [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]}], "星期六": [], "星期日": []}}}, {"name": "2026级临床医学八大班[43]", "dept": "第一临床医学院", "major": "临床医学", "size": 43, "schedule": {"一": {"星期一": [], "星期二": [{"name": "体育（1）", "teacher": "李俊骅", "room": "临床8大、检验技术（1）", "weeks": [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19]}, {"name": "体育（1）", "teacher": "程艺", "room": "临床8大、检验技术（2）", "weeks": [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19]}, {"name": "体育（1）", "teacher": "郭伟昌", "room": "临床8大、检验技术（3）", "weeks": [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19]}], "星期三": [{"name": "基础化学Ⅰ", "teacher": "王玉娜", "room": "5101", "weeks": [4, 5, 7, 8, 9, 10, 11, 12, 13, 14]}, {"name": "有机化学Ⅰ", "teacher": "李洪涛", "room": "5101", "weeks": [15, 16, 17]}], "星期四": [], "星期五": [{"name": "基础化学Ⅰ", "teacher": "孙忠文", "room": "药学院二楼实验室-1", "weeks": [4, 5, 6, 7, 8, 9, 10]}, {"name": "基础化学Ⅰ", "teacher": "李玉鹏", "room": "药学院二楼实验室-1", "weeks": [4, 5, 6, 7, 8, 9, 10]}, {"name": "基础化学Ⅰ", "teacher": "柳波", "room": "药学院二楼实验室-1", "weeks": [4, 5, 6, 7, 8, 9, 10]}, {"name": "有机化学Ⅰ", "teacher": "李正飞", "room": "药学院一楼实验室-2", "weeks": [11, 12, 13, 14, 15, 16, 17, 18]}, {"name": "有机化学Ⅰ", "teacher": "王祯", "room": "药学院一楼实验室-2", "weeks": [11, 12, 13, 14, 15, 16, 17, 18]}, {"name": "有机化学Ⅰ", "teacher": "柳波", "room": "药学院一楼实验室-2", "weeks": [11, 12, 13, 14, 15, 16, 17, 18]}], "星期六": [], "星期日": []}, "二": {"星期一": [{"name": "基础化学Ⅰ", "teacher": "王玉娜", "room": "5101", "weeks": [4, 5]}, {"name": "有机化学Ⅰ", "teacher": "李洪涛", "room": "5101", "weeks": [7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18]}], "星期二": [{"name": "医学物理学", "teacher": "杨皖君", "room": "5401", "weeks": [4, 5, 6, 7, 8, 9, 10, 11, 12]}], "星期三": [{"name": "医学物理学", "teacher": "杨皖君", "room": "3101", "weeks": [4, 5, 6, 7, 8, 9, 10, 11, 12]}], "星期四": [], "星期五": [], "星期六": [], "星期日": []}, "三": {"星期一": [{"name": "临床医学导论", "teacher": "陶芸", "room": "5407", "weeks": [4]}, {"name": "临床医学导论", "teacher": "陶芸", "room": "5407", "weeks": [5]}, {"name": "临床医学导论", "teacher": "杨蕴芝", "room": "5407", "weeks": [7, 8, 9]}, {"name": "临床医学导论", "teacher": "陶芸", "room": "5407", "weeks": [10, 11]}, {"name": "临床医学导论", "teacher": "陶芸", "room": "5407", "weeks": [12]}, {"name": "医用高等数学Ⅰ", "teacher": "胡俊涛", "room": "3203", "weeks": [13, 14]}, {"name": "大学生心理健康教育", "teacher": "外聘教师1", "room": "1106", "weeks": [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]}], "星期二": [], "星期三": [{"name": "医用高等数学Ⅰ", "teacher": "胡俊涛", "room": "5203", "weeks": [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19]}, {"name": "国家安全教育", "teacher": "外聘教师1", "room": "5202", "weeks": [14, 15, 16, 17, 18]}], "星期四": [], "星期五": [{"name": "医学物理学", "teacher": "高泽利", "room": "26级医学物理学临床8班", "weeks": [13, 14, 15]}, {"name": "医学物理学", "teacher": "高泽利", "room": "26级医学物理学临床8班", "weeks": [17, 18]}], "星期六": [], "星期日": []}, "四": {"星期一": [], "星期二": [], "星期三": [], "星期四": [], "星期五": [{"name": "临床医学导论", "teacher": "陶芸", "room": "5407", "weeks": [6]}], "星期六": [], "星期日": []}, "五": {"星期一": [], "星期二": [], "星期三": [], "星期四": [], "星期五": [{"name": "医学物理学", "teacher": "高泽利", "room": "26级医学物理学临床8班", "weeks": [16]}], "星期六": [], "星期日": []}}}, {"name": "2026级临床医学九大班[43]", "dept": "第二临床医学院", "major": "临床医学", "size": 43, "schedule": {"一": {"星期一": [], "星期二": [], "星期三": [{"name": "基础化学Ⅰ", "teacher": "姚家灿", "room": "药学院二楼实验室-1", "weeks": [4, 5, 6, 7, 8, 9, 10]}, {"name": "基础化学Ⅰ", "teacher": "徐湘婷", "room": "药学院二楼实验室-1", "weeks": [4, 5, 6, 7, 8, 9, 10]}, {"name": "基础化学Ⅰ", "teacher": "邵娅婷", "room": "药学院二楼实验室-1", "weeks": [4, 5, 6, 7, 8, 9, 10]}, {"name": "有机化学Ⅰ", "teacher": "徐寒", "room": "药学楼一楼实验室-1", "weeks": [11, 12, 13, 14, 15, 16, 17, 18]}, {"name": "有机化学Ⅰ", "teacher": "徐湘婷", "room": "药学楼一楼实验室-1", "weeks": [11, 12, 13, 14, 15, 16, 17, 18]}, {"name": "有机化学Ⅰ", "teacher": "陈亚萍", "room": "药学楼一楼实验室-1", "weeks": [11, 12, 13, 14, 15, 16, 17, 18]}], "星期四": [{"name": "医用高等数学Ⅰ", "teacher": "张林林", "room": "6303", "weeks": [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18]}], "星期五": [{"name": "基础化学Ⅰ", "teacher": "姚家灿", "room": "5102", "weeks": [4, 6]}, {"name": "有机化学Ⅰ", "teacher": "徐畅", "room": "5102", "weeks": [7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17]}], "星期六": [], "星期日": []}, "二": {"星期一": [{"name": "医学物理学", "teacher": "杨翰男", "room": "6303", "weeks": [4, 5, 6, 7, 8, 9, 10, 11, 12]}], "星期二": [{"name": "医用高等数学Ⅰ", "teacher": "张林林", "room": "5203", "weeks": [16, 17, 18]}], "星期三": [], "星期四": [{"name": "临床医学导论", "teacher": "陶芸", "room": "5203", "weeks": [4]}, {"name": "临床医学导论", "teacher": "李群", "room": "5203", "weeks": [6, 7, 8, 9]}, {"name": "临床医学导论", "teacher": "陶芸", "room": "5203", "weeks": [10, 11]}, {"name": "临床医学导论", "teacher": "陶芸", "room": "5203", "weeks": [12]}], "星期五": [{"name": "体育（1）", "teacher": "李俊骅", "room": "临床9、16大（1）", "weeks": [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19]}, {"name": "体育（1）", "teacher": "庞俊娣", "room": "临床9、16大（2）", "weeks": [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19]}, {"name": "体育（1）", "teacher": "田金东", "room": "临床9、16大（3）", "weeks": [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19]}], "星期六": [], "星期日": []}, "三": {"星期一": [{"name": "国家安全教育", "teacher": "杨天鸿", "room": "1506", "weeks": [14, 15, 16, 17, 18]}, {"name": "大学生心理健康教育", "teacher": "唐宝春", "room": "1309", "weeks": [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]}], "星期二": [], "星期三": [{"name": "医学物理学", "teacher": "杨翰男", "room": "5101", "weeks": [4, 5, 6, 7, 8, 9, 10, 11, 12]}, {"name": "医学物理学", "teacher": "张何丽", "room": "26级医学物理学临床18,9班", "weeks": [13, 14, 15, 16, 17, 18]}], "星期四": [], "星期五": [{"name": "临床医学导论", "teacher": "陶芸", "room": "5203", "weeks": [6]}], "星期六": [], "星期日": []}, "四": {"星期一": [], "星期二": [{"name": "基础化学Ⅰ", "teacher": "姚家灿", "room": "5102", "weeks": [4, 5, 7, 8, 9, 10, 11, 12, 13, 14]}, {"name": "有机化学Ⅰ", "teacher": "徐畅", "room": "5102", "weeks": [15, 16, 17, 18]}], "星期三": [], "星期四": [], "星期五": [], "星期六": [], "星期日": []}, "五": {"星期一": [], "星期二": [], "星期三": [], "星期四": [], "星期五": [], "星期六": [], "星期日": []}}}, {"name": "2026级临床医学十大班[42]", "dept": "第二临床医学院", "major": "临床医学", "size": 42, "schedule": {"一": {"星期一": [{"name": "临床医学导论", "teacher": "陶芸", "room": "5302", "weeks": [5]}, {"name": "医用高等数学Ⅰ", "teacher": "武飞", "room": "3101", "weeks": [13, 14, 15]}], "星期二": [], "星期三": [], "星期四": [{"name": "临床医学导论", "teacher": "陶芸", "room": "5303", "weeks": [4]}, {"name": "临床医学导论", "teacher": "李群", "room": "5303", "weeks": [6, 7, 8, 9]}, {"name": "临床医学导论", "teacher": "陶芸", "room": "5303", "weeks": [10, 11]}, {"name": "临床医学导论", "teacher": "陶芸", "room": "5303", "weeks": [12]}], "星期五": [{"name": "基础化学Ⅰ", "teacher": "徐寒", "room": "5103", "weeks": [4, 6, 7, 8, 9, 10, 11, 12, 13, 14]}, {"name": "有机化学Ⅰ", "teacher": "孙忠文", "room": "5103", "weeks": [15, 16, 17]}], "星期六": [], "星期日": []}, "二": {"星期一": [{"name": "医学物理学", "teacher": "杨皖君", "room": "6103", "weeks": [4, 5, 6, 7, 8, 9, 10, 11, 12]}, {"name": "医学物理学", "teacher": "高泽利", "room": "26级医学物理学临床10,11班", "weeks": [13, 14, 15, 16, 17, 18]}], "星期二": [{"name": "基础化学Ⅰ", "teacher": "徐寒", "room": "5103", "weeks": [4, 5]}, {"name": "有机化学Ⅰ", "teacher": "孙忠文", "room": "5103", "weeks": [7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18]}], "星期三": [], "星期四": [], "星期五": [{"name": "医用高等数学Ⅰ", "teacher": "武飞", "room": "3102", "weeks": [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18]}], "星期六": [], "星期日": []}, "三": {"星期一": [{"name": "基础化学Ⅰ", "teacher": "徐寒", "room": "药学院二楼实验室-1", "weeks": [4, 5, 6, 7, 8, 9, 10]}, {"name": "基础化学Ⅰ", "teacher": "王玉娜", "room": "药学院二楼实验室-1", "weeks": [4, 5, 6, 7, 8, 9, 10]}, {"name": "基础化学Ⅰ", "teacher": "魏钰卜", "room": "药学院二楼实验室-1", "weeks": [4, 5, 6, 7, 8, 9, 10]}, {"name": "有机化学Ⅰ", "teacher": "徐寒", "room": "药学楼一楼实验室-1", "weeks": [11, 12, 13, 14, 15, 16, 17, 18]}, {"name": "有机化学Ⅰ", "teacher": "李洪涛", "room": "药学楼一楼实验室-1", "weeks": [11, 12, 13, 14, 15, 16, 17, 18]}, {"name": "有机化学Ⅰ", "teacher": "陈丽君", "room": "药学楼一楼实验室-1", "weeks": [11, 12, 13, 14, 15, 16, 17, 18]}], "星期二": [], "星期三": [{"name": "体育（1）", "teacher": "张松", "room": "临床10大", "weeks": [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19]}, {"name": "国家安全教育", "teacher": "葛丽敏", "room": "1406", "weeks": [14, 15, 16, 17, 18]}], "星期四": [{"name": "大学生心理健康教育", "teacher": "赵敏", "room": "1507", "weeks": [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]}], "星期五": [], "星期六": [], "星期日": []}, "四": {"星期一": [], "星期二": [], "星期三": [{"name": "医学物理学", "teacher": "杨皖君", "room": "5202", "weeks": [4, 5, 6, 7, 8, 9, 10, 11, 12]}], "星期四": [], "星期五": [], "星期六": [], "星期日": []}, "五": {"星期一": [], "星期二": [], "星期三": [], "星期四": [], "星期五": [], "星期六": [], "星期日": []}}}, {"name": "2026级临床医学十一大班[43]", "dept": "第二临床医学院", "major": "临床医学", "size": 43, "schedule": {"一": {"星期一": [{"name": "临床医学导论", "teacher": "陶芸", "room": "5302", "weeks": [5]}, {"name": "医用高等数学Ⅰ", "teacher": "武飞", "room": "3101", "weeks": [13, 14, 15]}], "星期二": [], "星期三": [], "星期四": [{"name": "临床医学导论", "teacher": "陶芸", "room": "5303", "weeks": [4]}, {"name": "临床医学导论", "teacher": "李群", "room": "5303", "weeks": [6, 7, 8, 9]}, {"name": "临床医学导论", "teacher": "陶芸", "room": "5303", "weeks": [10, 11]}, {"name": "临床医学导论", "teacher": "陶芸", "room": "5303", "weeks": [12]}], "星期五": [{"name": "基础化学Ⅰ", "teacher": "徐寒", "room": "5103", "weeks": [4, 6, 7, 8, 9, 10, 11, 12, 13, 14]}, {"name": "有机化学Ⅰ", "teacher": "孙忠文", "room": "5103", "weeks": [15, 16, 17]}], "星期六": [], "星期日": []}, "二": {"星期一": [{"name": "医学物理学", "teacher": "杨皖君", "room": "6103", "weeks": [4, 5, 6, 7, 8, 9, 10, 11, 12]}, {"name": "医学物理学", "teacher": "高泽利", "room": "26级医学物理学临床10,11班", "weeks": [13, 14, 15, 16, 17, 18]}], "星期二": [{"name": "基础化学Ⅰ", "teacher": "徐寒", "room": "5103", "weeks": [4, 5]}, {"name": "有机化学Ⅰ", "teacher": "孙忠文", "room": "5103", "weeks": [7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18]}], "星期三": [], "星期四": [], "星期五": [{"name": "医用高等数学Ⅰ", "teacher": "武飞", "room": "3102", "weeks": [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18]}], "星期六": [], "星期日": []}, "三": {"星期一": [{"name": "基础化学Ⅰ", "teacher": "徐寒", "room": "药学院二楼实验室-1", "weeks": [4, 5, 6, 7, 8, 9, 10]}, {"name": "基础化学Ⅰ", "teacher": "王玉娜", "room": "药学院二楼实验室-1", "weeks": [4, 5, 6, 7, 8, 9, 10]}, {"name": "基础化学Ⅰ", "teacher": "魏钰卜", "room": "药学院二楼实验室-1", "weeks": [4, 5, 6, 7, 8, 9, 10]}, {"name": "有机化学Ⅰ", "teacher": "徐寒", "room": "药学楼一楼实验室-1", "weeks": [11, 12, 13, 14, 15, 16, 17, 18]}, {"name": "有机化学Ⅰ", "teacher": "李洪涛", "room": "药学楼一楼实验室-1", "weeks": [11, 12, 13, 14, 15, 16, 17, 18]}, {"name": "有机化学Ⅰ", "teacher": "陈丽君", "room": "药学楼一楼实验室-1", "weeks": [11, 12, 13, 14, 15, 16, 17, 18]}], "星期二": [], "星期三": [{"name": "体育（1）", "teacher": "李榆", "room": "临床11大", "weeks": [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19]}, {"name": "国家安全教育", "teacher": "葛丽敏", "room": "1406", "weeks": [14, 15, 16, 17, 18]}], "星期四": [{"name": "大学生心理健康教育", "teacher": "赵敏", "room": "1507", "weeks": [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]}], "星期五": [], "星期六": [], "星期日": []}, "四": {"星期一": [], "星期二": [], "星期三": [{"name": "医学物理学", "teacher": "杨皖君", "room": "5202", "weeks": [4, 5, 6, 7, 8, 9, 10, 11, 12]}], "星期四": [], "星期五": [], "星期六": [], "星期日": []}, "五": {"星期一": [], "星期二": [], "星期三": [], "星期四": [], "星期五": [], "星期六": [], "星期日": []}}}, {"name": "2026级临床医学十二大班[43]", "dept": "第二临床医学院", "major": "临床医学", "size": 43, "schedule": {"一": {"星期一": [], "星期二": [{"name": "基础化学Ⅰ", "teacher": "丁林芬", "room": "药学院二楼实验室-1", "weeks": [4, 5, 6, 7, 8, 9, 10]}, {"name": "基础化学Ⅰ", "teacher": "王玉娜", "room": "药学院二楼实验室-1", "weeks": [4, 5, 6, 7, 8, 9, 10]}, {"name": "基础化学Ⅰ", "teacher": "陈丽君", "room": "药学院二楼实验室-1", "weeks": [4, 5, 6, 7, 8, 9, 10]}, {"name": "有机化学Ⅰ", "teacher": "丁林芬", "room": "药学楼一楼实验室-1", "weeks": [11, 12, 13, 14, 15, 16, 17, 18]}, {"name": "有机化学Ⅰ", "teacher": "王玉娜", "room": "药学楼一楼实验室-1", "weeks": [11, 12, 13, 14, 15, 16, 17, 18]}, {"name": "有机化学Ⅰ", "teacher": "陈丽君", "room": "药学楼一楼实验室-1", "weeks": [11, 12, 13, 14, 15, 16, 17, 18]}], "星期三": [], "星期四": [{"name": "基础化学Ⅰ", "teacher": "马国兰", "room": "5301", "weeks": [4, 6]}, {"name": "有机化学Ⅰ", "teacher": "孙忠文", "room": "5301", "weeks": [7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17]}], "星期五": [{"name": "临床医学导论", "teacher": "郭峰", "room": "5203", "weeks": [5, 6]}, {"name": "临床医学导论", "teacher": "杨蕴芝", "room": "5203", "weeks": [7, 8, 9]}, {"name": "临床医学导论", "teacher": "郭峰", "room": "5203", "weeks": [10, 11]}, {"name": "临床医学导论", "teacher": "郭峰", "room": "5203", "weeks": [12]}], "星期六": [], "星期日": []}, "二": {"星期一": [{"name": "医用高等数学Ⅰ", "teacher": "张林林", "room": "6303", "weeks": [16, 17, 18]}], "星期二": [], "星期三": [], "星期四": [{"name": "医学物理学", "teacher": "杨皖君", "room": "6201", "weeks": [4, 5, 6, 7, 8, 9, 10, 11, 12]}, {"name": "医学物理学", "teacher": "高泽利", "room": "26级医学物理学临床12,13班", "weeks": [13, 14, 15, 16, 17, 18]}], "星期五": [{"name": "医用高等数学Ⅰ", "teacher": "张林林", "room": "6203", "weeks": [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18]}], "星期六": [], "星期日": []}, "三": {"星期一": [{"name": "基础化学Ⅰ", "teacher": "马国兰", "room": "5301", "weeks": [4, 5, 7, 8, 9, 10, 11, 12, 13, 14]}, {"name": "有机化学Ⅰ", "teacher": "孙忠文", "room": "5301", "weeks": [15, 16, 17, 18]}], "星期二": [{"name": "体育（1）", "teacher": "徐连武", "room": "临床12、13大（1）", "weeks": [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19]}, {"name": "体育（1）", "teacher": "程雄", "room": "临床12、13大（2）", "weeks": [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19]}, {"name": "体育（1）", "teacher": "张安骏", "room": "临床12、13大（3）", "weeks": [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19]}], "星期三": [], "星期四": [{"name": "临床医学导论", "teacher": "杨蕴芝", "room": "5203", "weeks": [4]}], "星期五": [], "星期六": [], "星期日": []}, "四": {"星期一": [{"name": "医学物理学", "teacher": "杨皖君", "room": "6201", "weeks": [4, 5, 6, 7, 8, 9, 10, 11, 12]}], "星期二": [], "星期三": [{"name": "国家安全教育", "teacher": "赵娅玲", "room": "5101", "weeks": [14, 15, 16, 17, 18]}], "星期四": [], "星期五": [], "星期六": [], "星期日": []}, "五": {"星期一": [], "星期二": [], "星期三": [{"name": "大学生心理健康教育", "teacher": "姚娜", "room": "1307", "weeks": [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]}], "星期四": [], "星期五": [], "星期六": [], "星期日": []}}}, {"name": "2026级临床医学十三大班[41]", "dept": "第二临床医学院", "major": "临床医学", "size": 41, "schedule": {"一": {"星期一": [], "星期二": [{"name": "基础化学Ⅰ", "teacher": "丁林芬", "room": "药学院二楼实验室-1", "weeks": [4, 5, 6, 7, 8, 9, 10]}, {"name": "基础化学Ⅰ", "teacher": "王玉娜", "room": "药学院二楼实验室-1", "weeks": [4, 5, 6, 7, 8, 9, 10]}, {"name": "基础化学Ⅰ", "teacher": "陈丽君", "room": "药学院二楼实验室-1", "weeks": [4, 5, 6, 7, 8, 9, 10]}, {"name": "有机化学Ⅰ", "teacher": "丁林芬", "room": "药学楼一楼实验室-1", "weeks": [11, 12, 13, 14, 15, 16, 17, 18]}, {"name": "有机化学Ⅰ", "teacher": "王玉娜", "room": "药学楼一楼实验室-1", "weeks": [11, 12, 13, 14, 15, 16, 17, 18]}, {"name": "有机化学Ⅰ", "teacher": "陈丽君", "room": "药学楼一楼实验室-1", "weeks": [11, 12, 13, 14, 15, 16, 17, 18]}], "星期三": [], "星期四": [{"name": "基础化学Ⅰ", "teacher": "马国兰", "room": "5301", "weeks": [4, 6]}, {"name": "有机化学Ⅰ", "teacher": "孙忠文", "room": "5301", "weeks": [7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17]}], "星期五": [{"name": "临床医学导论", "teacher": "郭峰", "room": "5203", "weeks": [5, 6]}, {"name": "临床医学导论", "teacher": "杨蕴芝", "room": "5203", "weeks": [7, 8, 9]}, {"name": "临床医学导论", "teacher": "郭峰", "room": "5203", "weeks": [10, 11]}, {"name": "临床医学导论", "teacher": "郭峰", "room": "5203", "weeks": [12]}], "星期六": [], "星期日": []}, "二": {"星期一": [{"name": "医用高等数学Ⅰ", "teacher": "张林林", "room": "6303", "weeks": [16, 17, 18]}], "星期二": [], "星期三": [], "星期四": [{"name": "医学物理学", "teacher": "杨皖君", "room": "6201", "weeks": [4, 5, 6, 7, 8, 9, 10, 11, 12]}, {"name": "医学物理学", "teacher": "高泽利", "room": "26级医学物理学临床12,13班", "weeks": [13, 14, 15, 16, 17, 18]}], "星期五": [{"name": "医用高等数学Ⅰ", "teacher": "张林林", "room": "6203", "weeks": [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18]}], "星期六": [], "星期日": []}, "三": {"星期一": [{"name": "基础化学Ⅰ", "teacher": "马国兰", "room": "5301", "weeks": [4, 5, 7, 8, 9, 10, 11, 12, 13, 14]}, {"name": "有机化学Ⅰ", "teacher": "孙忠文", "room": "5301", "weeks": [15, 16, 17, 18]}], "星期二": [{"name": "体育（1）", "teacher": "徐连武", "room": "临床12、13大（1）", "weeks": [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19]}, {"name": "体育（1）", "teacher": "程雄", "room": "临床12、13大（2）", "weeks": [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19]}, {"name": "体育（1）", "teacher": "张安骏", "room": "临床12、13大（3）", "weeks": [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19]}], "星期三": [], "星期四": [{"name": "临床医学导论", "teacher": "杨蕴芝", "room": "5203", "weeks": [4]}], "星期五": [], "星期六": [], "星期日": []}, "四": {"星期一": [{"name": "医学物理学", "teacher": "杨皖君", "room": "6201", "weeks": [4, 5, 6, 7, 8, 9, 10, 11, 12]}], "星期二": [], "星期三": [{"name": "国家安全教育", "teacher": "赵娅玲", "room": "5101", "weeks": [14, 15, 16, 17, 18]}], "星期四": [], "星期五": [], "星期六": [], "星期日": []}, "五": {"星期一": [], "星期二": [], "星期三": [{"name": "大学生心理健康教育", "teacher": "姚娜", "room": "1307", "weeks": [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]}], "星期四": [], "星期五": [], "星期六": [], "星期日": []}}}, {"name": "2026级临床医学十四大班[43]", "dept": "第二临床医学院", "major": "临床医学", "size": 43, "schedule": {"一": {"星期一": [{"name": "医用高等数学Ⅰ", "teacher": "王艳宁", "room": "6202", "weeks": [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19]}], "星期二": [{"name": "基础化学Ⅰ", "teacher": "马国兰", "room": "5303", "weeks": [4, 5, 7, 8, 9, 10, 11, 12, 13, 14]}, {"name": "有机化学Ⅰ", "teacher": "柳波", "room": "5303", "weeks": [15, 16, 17, 18]}], "星期三": [{"name": "临床医学导论", "teacher": "段红艳", "room": "6203", "weeks": [4]}, {"name": "临床医学导论", "teacher": "段红艳", "room": "6203", "weeks": [5]}, {"name": "临床医学导论", "teacher": "段红艳", "room": "6203", "weeks": [11]}, {"name": "国家安全教育", "teacher": "张冰", "room": "1109", "weeks": [14, 15, 16, 17, 18]}], "星期四": [{"name": "医学物理学", "teacher": "高泽利", "room": "26级医学物理学临床14,15班", "weeks": [13, 14, 15, 16, 17, 18]}], "星期五": [{"name": "医用高等数学Ⅰ", "teacher": "王艳宁", "room": "6202", "weeks": [4, 5]}], "星期六": [], "星期日": []}, "二": {"星期一": [], "星期二": [{"name": "医学物理学", "teacher": "屈静", "room": "5402", "weeks": [4, 5, 6, 7, 8, 9, 10, 11, 12]}], "星期三": [{"name": "医学物理学", "teacher": "屈静", "room": "5402", "weeks": [4, 5, 6, 7, 8, 9, 10, 11, 12]}], "星期四": [], "星期五": [{"name": "临床医学导论", "teacher": "郭艳", "room": "6202", "weeks": [6, 7, 8, 9]}, {"name": "临床医学导论", "teacher": "段红艳", "room": "6202", "weeks": [10]}, {"name": "临床医学导论", "teacher": "段红艳", "room": "6202", "weeks": [12]}], "星期六": [], "星期日": []}, "三": {"星期一": [], "星期二": [], "星期三": [], "星期四": [], "星期五": [{"name": "基础化学Ⅰ", "teacher": "孙忠文", "room": "药学院二楼实验室-2", "weeks": [5, 6, 7, 9, 10]}, {"name": "基础化学Ⅰ", "teacher": "马钰璐", "room": "药学院二楼实验室-2", "weeks": [5, 6, 7, 9, 10]}, {"name": "基础化学Ⅰ", "teacher": "罗绍忠", "room": "药学院二楼实验室-2", "weeks": [5, 6, 7, 9, 10]}, {"name": "有机化学Ⅰ", "teacher": "孙忠文", "room": "药学院一楼实验室-2", "weeks": [11, 13, 14, 15, 17, 18]}, {"name": "有机化学Ⅰ", "teacher": "马钰璐", "room": "药学院一楼实验室-2", "weeks": [11, 13, 14, 15, 17, 18]}, {"name": "有机化学Ⅰ", "teacher": "罗绍忠", "room": "药学院一楼实验室-2", "weeks": [11, 13, 14, 15, 17, 18]}], "星期六": [], "星期日": []}, "四": {"星期一": [], "星期二": [], "星期三": [{"name": "体育（1）", "teacher": "诸晨", "room": "临床14、15、19大（1）", "weeks": [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19]}, {"name": "体育（1）", "teacher": "董奎", "room": "临床14、15、19大（2）", "weeks": [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19]}, {"name": "体育（1）", "teacher": "李珂然", "room": "临床14、15、19大（3）", "weeks": [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19]}, {"name": "体育（1）", "teacher": "李榆", "room": "临床14、15、19大（4）", "weeks": [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19]}, {"name": "体育（1）", "teacher": "吴疆", "room": "临床14、15、19大（5）", "weeks": [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19]}], "星期四": [{"name": "基础化学Ⅰ", "teacher": "马国兰", "room": "5303", "weeks": [4, 6]}, {"name": "有机化学Ⅰ", "teacher": "柳波", "room": "5303", "weeks": [7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17]}], "星期五": [], "星期六": [], "星期日": []}, "五": {"星期一": [{"name": "大学生心理健康教育", "teacher": "杨小蕾", "room": "1206", "weeks": [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]}], "星期二": [], "星期三": [], "星期四": [], "星期五": [{"name": "基础化学Ⅰ", "teacher": "孙忠文", "room": "药学院二楼实验室-2", "weeks": [4, 8]}, {"name": "基础化学Ⅰ", "teacher": "马钰璐", "room": "药学院二楼实验室-2", "weeks": [4, 8]}, {"name": "基础化学Ⅰ", "teacher": "罗绍忠", "room": "药学院二楼实验室-2", "weeks": [4, 8]}, {"name": "有机化学Ⅰ", "teacher": "孙忠文", "room": "药学院一楼实验室-2", "weeks": [12, 16]}, {"name": "有机化学Ⅰ", "teacher": "马钰璐", "room": "药学院一楼实验室-2", "weeks": [12, 16]}, {"name": "有机化学Ⅰ", "teacher": "罗绍忠", "room": "药学院一楼实验室-2", "weeks": [12, 16]}], "星期六": [], "星期日": []}}}, {"name": "2026级临床医学十五大班[43]", "dept": "第二临床医学院", "major": "临床医学", "size": 43, "schedule": {"一": {"星期一": [{"name": "医用高等数学Ⅰ", "teacher": "王艳宁", "room": "6202", "weeks": [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19]}], "星期二": [{"name": "基础化学Ⅰ", "teacher": "马国兰", "room": "5303", "weeks": [4, 5, 7, 8, 9, 10, 11, 12, 13, 14]}, {"name": "有机化学Ⅰ", "teacher": "柳波", "room": "5303", "weeks": [15, 16, 17, 18]}], "星期三": [{"name": "临床医学导论", "teacher": "段红艳", "room": "6203", "weeks": [4]}, {"name": "临床医学导论", "teacher": "段红艳", "room": "6203", "weeks": [5]}, {"name": "临床医学导论", "teacher": "段红艳", "room": "6203", "weeks": [11]}], "星期四": [{"name": "医学物理学", "teacher": "高泽利", "room": "26级医学物理学临床14,15班", "weeks": [13, 14, 15, 16, 17, 18]}], "星期五": [{"name": "医用高等数学Ⅰ", "teacher": "王艳宁", "room": "6202", "weeks": [4, 5]}], "星期六": [], "星期日": []}, "二": {"星期一": [], "星期二": [{"name": "医学物理学", "teacher": "屈静", "room": "5402", "weeks": [4, 5, 6, 7, 8, 9, 10, 11, 12]}], "星期三": [{"name": "医学物理学", "teacher": "屈静", "room": "5402", "weeks": [4, 5, 6, 7, 8, 9, 10, 11, 12]}], "星期四": [], "星期五": [{"name": "临床医学导论", "teacher": "郭艳", "room": "6202", "weeks": [6, 7, 8, 9]}, {"name": "临床医学导论", "teacher": "段红艳", "room": "6202", "weeks": [10]}, {"name": "临床医学导论", "teacher": "段红艳", "room": "6202", "weeks": [12]}], "星期六": [], "星期日": []}, "三": {"星期一": [], "星期二": [], "星期三": [{"name": "国家安全教育", "teacher": "葛丽敏", "room": "6502", "weeks": [14, 15, 16, 17, 18]}], "星期四": [], "星期五": [{"name": "基础化学Ⅰ", "teacher": "孙忠文", "room": "药学院二楼实验室-2", "weeks": [5, 6, 7, 9, 10]}, {"name": "基础化学Ⅰ", "teacher": "马钰璐", "room": "药学院二楼实验室-2", "weeks": [5, 6, 7, 9, 10]}, {"name": "基础化学Ⅰ", "teacher": "罗绍忠", "room": "药学院二楼实验室-2", "weeks": [5, 6, 7, 9, 10]}, {"name": "有机化学Ⅰ", "teacher": "孙忠文", "room": "药学院一楼实验室-2", "weeks": [11, 13, 14, 15, 17, 18]}, {"name": "有机化学Ⅰ", "teacher": "马钰璐", "room": "药学院一楼实验室-2", "weeks": [11, 13, 14, 15, 17, 18]}, {"name": "有机化学Ⅰ", "teacher": "罗绍忠", "room": "药学院一楼实验室-2", "weeks": [11, 13, 14, 15, 17, 18]}], "星期六": [], "星期日": []}, "四": {"星期一": [], "星期二": [], "星期三": [{"name": "体育（1）", "teacher": "诸晨", "room": "临床14、15、19大（1）", "weeks": [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19]}, {"name": "体育（1）", "teacher": "董奎", "room": "临床14、15、19大（2）", "weeks": [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19]}, {"name": "体育（1）", "teacher": "李珂然", "room": "临床14、15、19大（3）", "weeks": [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19]}, {"name": "体育（1）", "teacher": "李榆", "room": "临床14、15、19大（4）", "weeks": [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19]}, {"name": "体育（1）", "teacher": "吴疆", "room": "临床14、15、19大（5）", "weeks": [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19]}], "星期四": [{"name": "基础化学Ⅰ", "teacher": "马国兰", "room": "5303", "weeks": [4, 6]}, {"name": "有机化学Ⅰ", "teacher": "柳波", "room": "5303", "weeks": [7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17]}], "星期五": [], "星期六": [], "星期日": []}, "五": {"星期一": [], "星期二": [], "星期三": [{"name": "大学生心理健康教育", "teacher": "张颖", "room": "1108", "weeks": [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]}], "星期四": [], "星期五": [{"name": "基础化学Ⅰ", "teacher": "孙忠文", "room": "药学院二楼实验室-2", "weeks": [4, 8]}, {"name": "基础化学Ⅰ", "teacher": "马钰璐", "room": "药学院二楼实验室-2", "weeks": [4, 8]}, {"name": "基础化学Ⅰ", "teacher": "罗绍忠", "room": "药学院二楼实验室-2", "weeks": [4, 8]}, {"name": "有机化学Ⅰ", "teacher": "孙忠文", "room": "药学院一楼实验室-2", "weeks": [12, 16]}, {"name": "有机化学Ⅰ", "teacher": "马钰璐", "room": "药学院一楼实验室-2", "weeks": [12, 16]}, {"name": "有机化学Ⅰ", "teacher": "罗绍忠", "room": "药学院一楼实验室-2", "weeks": [12, 16]}], "星期六": [], "星期日": []}}}, {"name": "2026级临床医学十六大班[43]", "dept": "第二临床医学院", "major": "临床医学", "size": 43, "schedule": {"一": {"星期一": [{"name": "基础化学Ⅰ", "teacher": "姚家灿", "room": "5303", "weeks": [4, 5, 7, 8, 9, 10, 11, 12, 13, 14]}, {"name": "有机化学Ⅰ", "teacher": "柳波", "room": "5303", "weeks": [15, 16, 17, 18]}], "星期二": [{"name": "临床医学导论", "teacher": "罗宁", "room": "5301", "weeks": [4, 5]}, {"name": "临床医学导论", "teacher": "彭银", "room": "5301", "weeks": [6, 7, 8]}, {"name": "临床医学导论", "teacher": "罗宁", "room": "5301", "weeks": [9, 10]}, {"name": "临床医学导论", "teacher": "彭银", "room": "5301", "weeks": [11]}, {"name": "临床医学导论", "teacher": "罗宁", "room": "5301", "weeks": [12]}], "星期三": [{"name": "国家安全教育", "teacher": "张冰", "room": "1109", "weeks": [14, 15, 16, 17, 18]}], "星期四": [], "星期五": [], "星期六": [], "星期日": []}, "二": {"星期一": [], "星期二": [], "星期三": [{"name": "医用高等数学Ⅰ", "teacher": "张娟", "room": "3102", "weeks": [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18]}], "星期四": [], "星期五": [{"name": "体育（1）", "teacher": "李俊骅", "room": "临床9、16大（1）", "weeks": [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19]}, {"name": "体育（1）", "teacher": "庞俊娣", "room": "临床9、16大（2）", "weeks": [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19]}, {"name": "体育（1）", "teacher": "田金东", "room": "临床9、16大（3）", "weeks": [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19]}], "星期六": [], "星期日": []}, "三": {"星期一": [{"name": "医用高等数学Ⅰ", "teacher": "张娟", "room": "3102", "weeks": [11, 12, 13]}], "星期二": [{"name": "基础化学Ⅰ", "teacher": "丁林芬", "room": "药学院二楼实验室-2", "weeks": [4, 5, 6, 7, 8, 9, 10]}, {"name": "基础化学Ⅰ", "teacher": "王祯", "room": "药学院二楼实验室-2", "weeks": [4, 5, 6, 7, 8, 9, 10]}, {"name": "基础化学Ⅰ", "teacher": "喻芳", "room": "药学院二楼实验室-2", "weeks": [4, 5, 6, 7, 8, 9, 10]}, {"name": "有机化学Ⅰ", "teacher": "丁林芬", "room": "药学院一楼实验室-2", "weeks": [11, 12, 13, 14, 15, 16, 17, 18]}, {"name": "有机化学Ⅰ", "teacher": "王祯", "room": "药学院一楼实验室-2", "weeks": [11, 12, 13, 14, 15, 16, 17, 18]}, {"name": "有机化学Ⅰ", "teacher": "陈丽君", "room": "药学院一楼实验室-2", "weeks": [11, 12, 13, 14, 15, 16, 17, 18]}], "星期三": [], "星期四": [{"name": "基础化学Ⅰ", "teacher": "姚家灿", "room": "5303", "weeks": [4, 6]}, {"name": "有机化学Ⅰ", "teacher": "柳波", "room": "5303", "weeks": [7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17]}], "星期五": [], "星期六": [], "星期日": []}, "四": {"星期一": [{"name": "医学物理学", "teacher": "王勇", "room": "5102", "weeks": [4, 5, 6, 7, 8, 9, 10, 11, 12]}, {"name": "医学物理学", "teacher": "张何丽", "room": "26级医学物理学临床5,16班", "weeks": [13, 14, 15, 16, 17, 18]}], "星期二": [], "星期三": [{"name": "医学物理学", "teacher": "王勇", "room": "5101", "weeks": [4, 5, 6, 7, 8, 9, 10, 11, 12]}], "星期四": [], "星期五": [], "星期六": [], "星期日": []}, "五": {"星期一": [{"name": "大学生心理健康教育", "teacher": "杨小蕾", "room": "1206", "weeks": [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]}], "星期二": [], "星期三": [], "星期四": [], "星期五": [], "星期六": [], "星期日": []}}}, {"name": "2026级临床医学十七大班[43]", "dept": "第二临床医学院", "major": "临床医学", "size": 43, "schedule": {"一": {"星期一": [{"name": "基础化学Ⅰ", "teacher": "柳波", "room": "药学楼一楼实验室-1", "weeks": [4, 5, 6, 7, 8, 9, 10]}, {"name": "基础化学Ⅰ", "teacher": "谢惠定", "room": "药学楼一楼实验室-1", "weeks": [4, 5, 6, 7, 8, 9, 10]}, {"name": "基础化学Ⅰ", "teacher": "姚建能", "room": "药学楼一楼实验室-1", "weeks": [4, 5, 6, 7, 8, 9, 10]}, {"name": "有机化学Ⅰ", "teacher": "马国兰", "room": "药学楼一楼实验室-1", "weeks": [11, 12, 13, 14, 15, 16, 17, 18]}, {"name": "有机化学Ⅰ", "teacher": "谢惠定", "room": "药学楼一楼实验室-1", "weeks": [11, 12, 13, 14, 15, 16, 17, 18]}, {"name": "有机化学Ⅰ", "teacher": "姚建能", "room": "药学楼一楼实验室-1", "weeks": [11, 12, 13, 14, 15, 16, 17, 18]}], "星期二": [], "星期三": [{"name": "临床医学导论", "teacher": "杨蕴芝", "room": "6202", "weeks": [4]}, {"name": "临床医学导论", "teacher": "郭峰", "room": "6202", "weeks": [5]}, {"name": "临床医学导论", "teacher": "尹凤琼", "room": "6202", "weeks": [11]}, {"name": "医学物理学", "teacher": "张何丽", "room": "26级医学物理学临床17,20班", "weeks": [13, 14, 15, 16, 17, 18]}], "星期四": [], "星期五": [{"name": "医用高等数学Ⅰ", "teacher": "武飞", "room": "3102", "weeks": [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18]}], "星期六": [], "星期日": []}, "二": {"星期一": [], "星期二": [], "星期三": [{"name": "体育（1）", "teacher": "李珂然", "room": "临床17、20大（1）", "weeks": [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19]}, {"name": "体育（1）", "teacher": "董奎", "room": "临床17、20大（2）", "weeks": [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19]}, {"name": "体育（1）", "teacher": "诸晨", "room": "临床17、20大（3）", "weeks": [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19]}], "星期四": [{"name": "基础化学Ⅰ", "teacher": "徐寒", "room": "5103", "weeks": [4, 6]}, {"name": "有机化学Ⅰ", "teacher": "李正飞", "room": "5103", "weeks": [7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17]}], "星期五": [{"name": "临床医学导论", "teacher": "郭峰", "room": "5203", "weeks": [6]}, {"name": "临床医学导论", "teacher": "杨蕴芝", "room": "5203", "weeks": [7, 8, 9]}, {"name": "临床医学导论", "teacher": "尹凤琼", "room": "5203", "weeks": [10]}, {"name": "临床医学导论", "teacher": "郭峰", "room": "5203", "weeks": [12]}, {"name": "国家安全教育", "teacher": "施增阳", "room": "5102", "weeks": [14, 15, 16, 17, 18]}], "星期六": [], "星期日": []}, "三": {"星期一": [], "星期二": [{"name": "基础化学Ⅰ", "teacher": "徐寒", "room": "5103", "weeks": [4, 5, 7, 8, 9, 10, 11, 12, 13, 14]}, {"name": "有机化学Ⅰ", "teacher": "李正飞", "room": "5103", "weeks": [15, 16, 17, 18]}, {"name": "大学生心理健康教育", "teacher": "郭蓉", "room": "5402", "weeks": [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]}], "星期三": [], "星期四": [], "星期五": [], "星期六": [], "星期日": []}, "四": {"星期一": [{"name": "医学物理学", "teacher": "蒋薇", "room": "6103", "weeks": [4, 5, 6, 7, 8, 9, 10, 11, 12]}, {"name": "医用高等数学Ⅰ", "teacher": "武飞", "room": "3102", "weeks": [13, 14, 15]}], "星期二": [], "星期三": [{"name": "医学物理学", "teacher": "蒋薇", "room": "6101", "weeks": [4, 5, 6, 7, 8, 9, 10, 11, 12]}], "星期四": [], "星期五": [], "星期六": [], "星期日": []}, "五": {"星期一": [], "星期二": [], "星期三": [], "星期四": [], "星期五": [], "星期六": [], "星期日": []}}}, {"name": "2026级临床医学十八大班[41]", "dept": "第二临床医学院", "major": "临床医学", "size": 41, "schedule": {"一": {"星期一": [{"name": "体育（1）", "teacher": "吴疆", "room": "健康、临18、制药（1）班", "weeks": [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19]}, {"name": "体育（1）", "teacher": "崔白帆", "room": "健康、临18、制药（2）班", "weeks": [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19]}, {"name": "体育（1）", "teacher": "郭伟昌", "room": "健康、临18、制药（3）班", "weeks": [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19]}], "星期二": [], "星期三": [{"name": "基础化学Ⅰ", "teacher": "姚家灿", "room": "药学院二楼实验室-1", "weeks": [4, 5, 6, 7, 8, 9, 10]}, {"name": "基础化学Ⅰ", "teacher": "徐湘婷", "room": "药学院二楼实验室-1", "weeks": [4, 5, 6, 7, 8, 9, 10]}, {"name": "基础化学Ⅰ", "teacher": "邵娅婷", "room": "药学院二楼实验室-1", "weeks": [4, 5, 6, 7, 8, 9, 10]}, {"name": "有机化学Ⅰ", "teacher": "徐寒", "room": "药学楼一楼实验室-1", "weeks": [11, 12, 13, 14, 15, 16, 17, 18]}, {"name": "有机化学Ⅰ", "teacher": "徐湘婷", "room": "药学楼一楼实验室-1", "weeks": [11, 12, 13, 14, 15, 16, 17, 18]}, {"name": "有机化学Ⅰ", "teacher": "陈亚萍", "room": "药学楼一楼实验室-1", "weeks": [11, 12, 13, 14, 15, 16, 17, 18]}], "星期四": [{"name": "医用高等数学Ⅰ", "teacher": "张林林", "room": "6303", "weeks": [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18]}], "星期五": [{"name": "基础化学Ⅰ", "teacher": "姚家灿", "room": "5102", "weeks": [4, 6]}, {"name": "有机化学Ⅰ", "teacher": "徐畅", "room": "5102", "weeks": [7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17]}], "星期六": [], "星期日": []}, "二": {"星期一": [{"name": "医学物理学", "teacher": "杨翰男", "room": "6303", "weeks": [4, 5, 6, 7, 8, 9, 10, 11, 12]}], "星期二": [{"name": "医用高等数学Ⅰ", "teacher": "张林林", "room": "5203", "weeks": [16, 17, 18]}], "星期三": [], "星期四": [{"name": "临床医学导论", "teacher": "陶芸", "room": "5203", "weeks": [4]}, {"name": "临床医学导论", "teacher": "李群", "room": "5203", "weeks": [6, 7, 8, 9]}, {"name": "临床医学导论", "teacher": "陶芸", "room": "5203", "weeks": [10, 11]}, {"name": "临床医学导论", "teacher": "陶芸", "room": "5203", "weeks": [12]}], "星期五": [], "星期六": [], "星期日": []}, "三": {"星期一": [{"name": "国家安全教育", "teacher": "杨天鸿", "room": "1506", "weeks": [14, 15, 16, 17, 18]}, {"name": "大学生心理健康教育", "teacher": "唐宝春", "room": "1309", "weeks": [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]}], "星期二": [], "星期三": [{"name": "医学物理学", "teacher": "杨翰男", "room": "5101", "weeks": [4, 5, 6, 7, 8, 9, 10, 11, 12]}, {"name": "医学物理学", "teacher": "张何丽", "room": "26级医学物理学临床18,9班", "weeks": [13, 14, 15, 16, 17, 18]}], "星期四": [], "星期五": [{"name": "临床医学导论", "teacher": "陶芸", "room": "5203", "weeks": [6]}], "星期六": [], "星期日": []}, "四": {"星期一": [], "星期二": [{"name": "基础化学Ⅰ", "teacher": "姚家灿", "room": "5102", "weeks": [4, 5, 7, 8, 9, 10, 11, 12, 13, 14]}, {"name": "有机化学Ⅰ", "teacher": "徐畅", "room": "5102", "weeks": [15, 16, 17, 18]}], "星期三": [], "星期四": [], "星期五": [], "星期六": [], "星期日": []}, "五": {"星期一": [], "星期二": [], "星期三": [], "星期四": [], "星期五": [], "星期六": [], "星期日": []}}}];
+
+const dayNames = ["星期一","星期二","星期三","星期四","星期五","星期六","星期日"];
+const periods = ["一","二","三","四","五"];
+
+// ---- 每节 40 分钟，课间 10 分钟 ----
+const periodInfo = {
+  "一": {
+    label: "上午 一",
+    time:  "08:30–10:00",
+    start: 8*60+30, end: 10*60,
+    hhmm:  ["08:30","10:00"],
+    sub:   ["第1节 08:30–09:10", "第2节 09:20–10:00"]
+  },
+  "二": {
+    label: "上午 二",
+    time:  "10:20–11:50",
+    start: 10*60+20, end: 11*60+50,
+    hhmm:  ["10:20","11:50"],
+    sub:   ["第3节 10:20–11:00", "第4节 11:10–11:50"]
+  },
+  "三": {
+    label: "下午 三",
+    time:  "14:00–16:20",
+    start: 14*60, end: 16*60+20,
+    hhmm:  ["14:00","16:20"],
+    sub:   ["第5节 14:00–14:40", "第6节 14:50–15:30", "第7节 15:40–16:20"]
+  },
+  "四": {
+    label: "下午 四",
+    time:  "16:30–18:00",
+    start: 16*60+30, end: 18*60,
+    hhmm:  ["16:30","18:00"],
+    sub:   ["第8节 16:30–17:10", "第9节 17:20–18:00"]
+  },
+  "五": {
+    label: "晚上 五",
+    time:  "19:00–21:20",
+    start: 19*60, end: 21*60+20,
+    hhmm:  ["19:00","21:20"],
+    sub:   ["第10节 19:00–19:40", "第11节 19:50–20:30", "第12节 20:40–21:20"]
+  }
+};
+
+const SEMESTER_START = new Date(2026, 8, 1);   // Monday of week 1
+
+const state = {
+  currentClass: DATA[0] ? DATA[0].name : null,
+  week: guessWeek(),
+  todayView: false,
+  theme: localStorage.getItem("theme") || "light",
+};
+
+function guessWeek() {
+  const start = new Date(2026, 8, 1);
+  const now = new Date();
+  const diff = Math.floor((now - start) / (7 * 86400000)) + 1;
+  return Math.max(1, Math.min(18, diff));
+}
+function currentDayOfWeek() {
+  const d = new Date().getDay();
+  return d === 0 ? null : dayNames[d - 1];
+}
+function currentPeriod() {
+  const now = new Date();
+  const mins = now.getHours() * 60 + now.getMinutes();
+  for (const p of periods) {
+    const info = periodInfo[p];
+    if (mins >= info.start && mins <= info.end) return p;
+  }
+  return null;
+}
+function escapeHtml(s) {
+  return String(s == null ? "" : s).replace(/[&<>"']/g, ch => ({
+    "&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"
+  }[ch]));
+}
+const $ = s => document.querySelector(s);
+
+// ---------- Toast ----------
+let toastTimer;
+function toast(msg) {
+  const el = $("#toast");
+  el.textContent = msg;
+  el.classList.add("show");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove("show"), 2600);
+}
+
+// ---------- Sheet ----------
+function showSheet(title, items) {
+  $("#sheetTitle").textContent = title;
+  const wrap = $("#sheetItems");
+  wrap.innerHTML = "";
+  items.forEach(it => {
+    const btn = document.createElement("button");
+    btn.className = "sheet-item";
+    btn.innerHTML = `<span class="icon">${it.icon}</span>
+      <span class="label"><div>${escapeHtml(it.label)}</div>
+      ${it.sub ? `<div class="sub">${escapeHtml(it.sub)}</div>` : ""}</span>`;
+    btn.onclick = () => { hideSheet(); it.onClick(); };
+    wrap.appendChild(btn);
+  });
+  $("#sheetBackdrop").classList.add("show");
+  $("#sheet").classList.add("show");
+}
+function hideSheet() {
+  $("#sheetBackdrop").classList.remove("show");
+  $("#sheet").classList.remove("show");
+}
+$("#sheetCancel").onclick = hideSheet;
+$("#sheetBackdrop").onclick = hideSheet;
+
+// ---------- ICS ----------
+function icsEscape(s) {
+  return String(s == null ? "" : s)
+    .replace(/\\/g, "\\\\").replace(/,/g, "\\,").replace(/;/g, "\\;").replace(/\n/g, "\\n");
+}
+function pad(n) { return n < 10 ? "0" + n : "" + n; }
+function fmtLocal(d, hhmm) {
+  const [h, m] = hhmm.split(":").map(Number);
+  return `${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}T${pad(h)}${pad(m)}00`;
+}
+function fmtUTCNow() {
+  const d = new Date();
+  return `${d.getUTCFullYear()}${pad(d.getUTCMonth()+1)}${pad(d.getUTCDate())}T${pad(d.getUTCHours())}${pad(d.getUTCMinutes())}${pad(d.getUTCSeconds())}Z`;
+}
+function foldLine(line) {
+  const enc = new TextEncoder();
+  if (enc.encode(line).length <= 75) return line;
+  const out = []; let cur = ""; let bytes = 0;
+  for (const ch of line) {
+    const cb = enc.encode(ch).length;
+    if (bytes + cb > 73) { out.push(cur); cur = " " + ch; bytes = 1 + cb; }
+    else { cur += ch; bytes += cb; }
+  }
+  if (cur) out.push(cur);
+  return out.join("\r\n");
+}
+
+function buildICS(classes) {
+  const lines = [
+    "BEGIN:VCALENDAR",
+    "VERSION:2.0",
+    "PRODID:-//KMMU Timetable//CN",
+    "CALSCALE:GREGORIAN",
+    "METHOD:PUBLISH",
+    "X-WR-CALNAME:" + (classes.length === 1 ? icsEscape(classes[0].name) : "临床医学课表"),
+    "X-WR-TIMEZONE:Asia/Shanghai",
+  ];
+  const nowUtc = fmtUTCNow();
+  let uid = 0;
+  for (const cls of classes) {
+    for (const p of periods) {
+      const hhmm = periodInfo[p].hhmm;
+      for (let dIdx = 0; dIdx < dayNames.length; dIdx++) {
+        const day = dayNames[dIdx];
+        const courses = (cls.schedule[p] && cls.schedule[p][day]) || [];
+        for (const c of courses) {
+          const weeks = (c.weeks && c.weeks.length) ? c.weeks : Array.from({length:18},(_,i)=>i+1);
+          const dates = [];
+          for (const w of weeks) {
+            const d = new Date(SEMESTER_START);
+            d.setDate(d.getDate() + (w - 1) * 7 + dIdx);
+            dates.push(d);
+          }
+          if (!dates.length) continue;
+
+          const startStr = fmtLocal(dates[0], hhmm[0]);
+          const endStr   = fmtLocal(dates[0], hhmm[1]);
+
+          let summary = c.name || "课程";
+          if (c.teacher) summary += " · " + c.teacher;
+
+          const descParts = [];
+          if (c.teacher) descParts.push("教师：" + c.teacher);
+          if (c.room)    descParts.push("教室：" + c.room);
+          descParts.push("周次：" + weeks.join(","));
+          descParts.push("班级：" + cls.name);
+          descParts.push("每节 40 分钟，课间 10 分钟");
+
+          uid++;
+          lines.push("BEGIN:VEVENT");
+          lines.push("UID:" + uid + "-" + p + "-" + dIdx + "@kmmu-timetable");
+          lines.push("DTSTAMP:" + nowUtc);
+          lines.push("DTSTART:" + startStr);
+          lines.push("DTEND:" + endStr);
+          lines.push("SUMMARY:" + icsEscape(summary));
+          if (c.room) lines.push("LOCATION:" + icsEscape(c.room));
+          lines.push("DESCRIPTION:" + icsEscape(descParts.join("\n")));
+          if (dates.length > 1) {
+            const rdates = dates.slice(1).map(d => fmtLocal(d, hhmm[0])).join(",");
+            lines.push("RDATE:" + rdates);
+          }
+          lines.push("BEGIN:VALARM");
+          lines.push("TRIGGER:-PT15M");
+          lines.push("ACTION:DISPLAY");
+          lines.push("DESCRIPTION:" + icsEscape(summary));
+          lines.push("END:VALARM");
+          lines.push("END:VEVENT");
+        }
+      }
+    }
+  }
+  lines.push("END:VCALENDAR");
+  return lines.map(foldLine).join("\r\n") + "\r\n";
+}
+
+function safeName(s) {
+  return String(s).replace(/[^\w\u4e00-\u9fff\-]+/g, "_");
+}
+function download(filename, content) {
+  const blob = new Blob([content], { type: "text/calendar;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+async function addToCalendar(classes, filename) {
+  const ics = buildICS(classes);
+  if (navigator.canShare && navigator.share) {
+    try {
+      const file = new File([ics], filename, { type: "text/calendar" });
+      if (navigator.canShare({ files: [file] })) {
+        await navigator.share({ files: [file], title: filename });
+        toast("已添加到日历 ✓");
+        return;
+      }
+    } catch (err) {
+      if (err.name === "AbortError") return;
+    }
+  }
+  download(filename, ics);
+  toast("已下载：" + filename);
+}
+
+// ---------- Google Calendar URL ----------
+function googleCalUrl(cls, period, dayIdx, course) {
+  const hhmm = periodInfo[period].hhmm;
+  const weeks = (course.weeks && course.weeks.length) ? course.weeks : [1];
+  const first = new Date(SEMESTER_START);
+  first.setDate(first.getDate() + (weeks[0] - 1) * 7 + dayIdx);
+  const start = fmtLocal(first, hhmm[0]);
+  const end   = fmtLocal(first, hhmm[1]);
+  const text = course.name + (course.teacher ? " · " + course.teacher : "");
+  const details = [
+    course.teacher ? "教师：" + course.teacher : "",
+    course.room    ? "教室：" + course.room    : "",
+    "周次：" + weeks.join(","),
+    "班级：" + cls.name,
+    "每节 40 分钟，课间 10 分钟",
+  ].filter(Boolean).join("\n");
+  const params = new URLSearchParams({
+    action: "TEMPLATE", text: text, dates: start + "/" + end,
+    details: details, location: course.room || "",
+  });
+  return "https://calendar.google.com/calendar/render?" + params.toString();
+}
+function gcalAdd(cls, period, dayIdx, course) {
+  window.open(googleCalUrl(cls, period, dayIdx, course), "_blank");
+}
+
+// ---------- Render ----------
+function renderSidebar(filter) {
+  const ul = $("#classList");
+  ul.innerHTML = "";
+  const f = (filter || "").trim().toLowerCase();
+  DATA.forEach(c => {
+    if (f && !c.name.toLowerCase().includes(f) && !c.dept.toLowerCase().includes(f)) return;
+    const li = document.createElement("li");
+    li.textContent = c.name;
+    li.title = `${c.dept} · ${c.major} · ${c.size}人`;
+    if (c.name === state.currentClass) li.classList.add("active");
+    li.onclick = () => {
+      state.currentClass = c.name; state.todayView = false;
+      render(); $("#sidebar").classList.remove("open");
+    };
+    ul.appendChild(li);
+  });
+  if (!ul.children.length) {
+    ul.innerHTML = '<li style="color:var(--muted);cursor:default">没有匹配的班级</li>';
+  }
+}
+function renderToolbar() {
+  const sel = $("#weekSelect");
+  if (!sel.options.length) {
+    for (let w = 1; w <= 18; w++) {
+      const opt = document.createElement("option");
+      opt.value = w; opt.textContent = "第 " + w + " 周";
+      sel.appendChild(opt);
+    }
+  }
+  sel.value = state.week;
+  $("#todayBtn").classList.toggle("active", state.todayView);
+  $("#themeBtn").textContent = state.theme === "dark" ? "☀️" : "🌙";
+}
+function courseVisible(c) {
+  if (!c.weeks || !c.weeks.length) return true;
+  return c.weeks.includes(state.week);
+}
+
+function renderTimetable(cls) {
+  const today = currentDayOfWeek();
+  const nowP = currentPeriod();
+
+  let html = `<div class="class-header">
+    <div>
+      <h2>${escapeHtml(cls.name)}</h2>
+      <div class="meta">
+        ${escapeHtml(cls.dept)} · ${escapeHtml(cls.major)} · ${cls.size} 人 · 第 ${state.week} 周
+        <span class="rule">每节 40 分钟 · 课间 10 分钟</span>
+      </div>
+    </div>
+    <div class="actions">
+      <button class="primary" onclick="quickAddCurrent()">📱 添加到日历</button>
+    </div>
+  </div>`;
+
+  html += '<table class="timetable"><thead><tr>';
+  html += '<th class="period-col">节次 / 时间</th>';
+  dayNames.forEach(d => {
+    html += `<th class="${d === today ? 'now' : ''}">${d}</th>`;
+  });
+  html += '</tr></thead><tbody>';
+
+  periods.forEach(p => {
+    const info = periodInfo[p];
+    const subHtml = info.sub.map(s => `<span class="p">${s}</span>`).join("");
+    html += '<tr>';
+    html += `<td class="period-col">
+      <div class="label">${info.label}</div>
+      <span class="time">${info.time}</span>
+      <span class="sub">${subHtml}</span>
+    </td>`;
+    dayNames.forEach((d, dIdx) => {
+      const courses = (cls.schedule[p][d] || []).filter(courseVisible);
+      const isNow = d === today && p === nowP;
+      html += `<td class="${isNow ? 'now' : ''}">`;
+      courses.forEach((c, ci) => {
+        const info2 = (c.teacher ? escapeHtml(c.teacher) : '') + (c.room ? (c.teacher ? ' · ' : '') + escapeHtml(c.room) : '');
+        html += `<div class="course">
+          <button class="gcal" title="添加到 Google 日历"
+            onclick="addOne('${encodeURIComponent(cls.name)}','${p}',${dIdx},${ci})">📅</button>
+          <div class="name">${escapeHtml(c.name)}</div>
+          ${info2 ? `<div class="info">${info2}</div>` : ''}
+        </div>`;
+      });
+      html += '</td>';
+    });
+    html += '</tr>';
+  });
+
+  html += '</tbody></table>';
+  return html;
+}
+
+function renderTodayView(cls) {
+  const today = currentDayOfWeek();
+  if (!today) return '<div class="empty">今天是星期日，没有课程 🎉</div>';
+
+  let html = `<div class="today-view">
+    <div class="class-header">
+      <div>
+        <h2>${escapeHtml(cls.name)} · 今天（${today}）</h2>
+        <div class="meta"><span class="rule">每节 40 分钟 · 课间 10 分钟</span></div>
+      </div>
+      <div class="actions">
+        <button class="primary" onclick="quickAddCurrent()">📱 添加到日历</button>
+      </div>
+    </div>`;
+  let total = 0;
+  const dIdx = dayNames.indexOf(today);
+  periods.forEach(p => {
+    const courses = (cls.schedule[p][today] || []).filter(courseVisible);
+    if (!courses.length) return;
+    total++;
+    const info = periodInfo[p];
+    const subHtml = info.sub.join(" · ");
+    html += `<div class="today-item">
+      <div class="time-block">
+        <div class="label">${info.label}</div>
+        <span class="range">${info.time}</span>
+        <span class="sub">${subHtml}</span>
+      </div>
+      <div class="course-block">`;
+    courses.forEach((c, ci) => {
+      html += `<div class="name">${escapeHtml(c.name)}</div>
+        <div class="info">${escapeHtml(c.teacher)}${c.room ? ' · ' + escapeHtml(c.room) : ''}</div>
+        <button class="gcal" onclick="addOne('${encodeURIComponent(cls.name)}','${p}',${dIdx},${ci})">📅 Google 日历</button>`;
+    });
+    html += `</div></div>`;
+  });
+  if (!total) html += '<div class="empty">今天没有课程 🎉</div>';
+  html += '</div>';
+  return html;
+}
+
+function render() {
+  renderSidebar($("#search").value);
+  renderToolbar();
+  const cls = DATA.find(c => c.name === state.currentClass);
+  if (!cls) {
+    $("#content").innerHTML = '<div class="empty">请选择一个班级</div>';
+    return;
+  }
+  $("#content").innerHTML = state.todayView ? renderTodayView(cls) : renderTimetable(cls);
+}
+
+// ---------- Actions ----------
+function quickAddCurrent() {
+  const cls = DATA.find(c => c.name === state.currentClass);
+  if (!cls) { toast("请先选一个班级"); return; }
+  const filename = safeName(cls.name) + ".ics";
+  showSheet("添加到日历", [
+    { icon: "📱", label: "添加到手机日历", sub: "使用系统分享（推荐手机）",
+      onClick: () => addToCalendar([cls], filename) },
+    { icon: "📥", label: "下载 .ics 文件", sub: "手动导入 Google / Apple / Outlook",
+      onClick: () => { download(filename, buildICS([cls])); toast("已下载：" + filename); } },
+    { icon: "📦", label: "导出全部班级", sub: "包含 " + DATA.length + " 个班级",
+      onClick: () => {
+        const allName = "临床医学课表_全部班级.ics";
+        if (navigator.canShare && navigator.share) addToCalendar(DATA, allName);
+        else { download(allName, buildICS(DATA)); toast("已下载：" + allName); }
+      } },
+  ]);
+}
+function addOne(clsName, period, dayIdx, courseIdx) {
+  const cls = DATA.find(c => decodeURIComponent(clsName) === c.name);
+  if (!cls) return;
+  const day = dayNames[dayIdx];
+  const course = (cls.schedule[period][day] || [])[courseIdx];
+  if (!course) return;
+  gcalAdd(cls, period, dayIdx, course);
+}
+
+$("#search").addEventListener("input", () => renderSidebar($("#search").value));
+$("#weekSelect").addEventListener("change", e => { state.week = +e.target.value; render(); });
+$("#todayBtn").addEventListener("click", () => { state.todayView = !state.todayView; render(); });
+$("#calBtn").addEventListener("click", quickAddCurrent);
+$("#themeBtn").addEventListener("click", () => {
+  state.theme = state.theme === "dark" ? "light" : "dark";
+  document.documentElement.setAttribute("data-theme", state.theme);
+  localStorage.setItem("theme", state.theme);
+  renderToolbar();
+});
+$("#printBtn").addEventListener("click", () => window.print());
+$("#menuBtn").addEventListener("click", () => $("#sidebar").classList.toggle("open"));
+
+document.documentElement.setAttribute("data-theme", state.theme);
+setInterval(render, 60000);
+
+if (!DATA.length) {
+  document.body.innerHTML = '<div class="empty">没有数据，请先运行 build.py。</div>';
+} else {
+  render();
+}
+</script>
+</body>
+</html>
